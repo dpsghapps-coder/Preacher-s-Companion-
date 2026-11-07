@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Preacher's Companion</title>
+<meta name="theme-color" content="#1f3a5f">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header id="top">
+  <a class="brand" href="#/">Preacher's Companion</a>
+  <div class="seg" id="langseg" role="group" aria-label="Language">
+    <button data-lang="en">English</button><button data-lang="tw">Twi</button><button data-lang="both">Both</button>
+  </div>
+</header>
+<nav id="tabs">
+  <a href="#/" data-tab="search">Search</a>
+  <a href="#/themes" data-tab="themes">Themes</a>
+  <a href="#/saved" data-tab="saved">Saved</a>
+</nav>
+<main id="view"><p class="muted pad">Loading hymnal…</p></main>
+<script src="vendor/sql-wasm.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
