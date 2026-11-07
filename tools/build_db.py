@@ -118,6 +118,16 @@ def parse_refs(text):
     return out
 
 
+# manual corrections (tools/overrides.json) and hymns checked by hand (tools/reviewed_ok.json)
+OVR = {(o['language'], o['number']): o for o in json.load(open('tools/overrides.json'))}
+OK = {(o['language'], o['number']): o['note'] for o in json.load(open('tools/reviewed_ok.json'))}
+for (lang_, n_), o in OVR.items():
+    h_ = (en if lang_ == 'en' else tw)[n_]
+    h_['stanzas'] = o['stanzas']
+    h_['review'] = ['note: ' + o['note']]
+for (lang_, n_), note in OK.items():
+    (en if lang_ == 'en' else tw)[n_]['review'] = ['note: ' + note]
+
 # Twi section titles repeat on every page with small spelling/case variations: keep the most common per numeral
 from collections import Counter, defaultdict
 _sec, _sub = defaultdict(Counter), defaultdict(Counter)

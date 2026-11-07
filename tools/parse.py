@@ -192,6 +192,11 @@ def build(h):
             pending_num = int(t[:-1])
             continue
         m = re.match(r'^(\d{1,2})\.\s*(\S.*)$', t)
+        if m is None and not pending_num:
+            mm_ = re.match(r'^(\d{1,2})\s+([A-Z“‘].*)$', t)
+            prev_v = max([i['num'] for i in items if i['num']] or [0])
+            if mm_ and int(mm_.group(1)) == prev_v + 1:
+                m = mm_
         if m is None and pending_num is not None:
             m = re.match(r'^()(.*)$', t)
         newcol = prev is None or prev['page'] != l['page'] or prev['tag'] != l['tag']
