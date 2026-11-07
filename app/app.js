@@ -9,6 +9,7 @@ const LANGNAME = { en: 'English', tw: 'Twi' };
 let db, lang = store.get('lang', 'en'), fs = store.get('fs', 19);
 let favs = store.get('favs', []), recent = store.get('recent', []);
 let wake = null;
+let sbs = store.get('sbs', window.innerWidth >= 700);   // verse-aligned side-by-side layout
 
 function q(sql, params = []) {
   const st = db.prepare(sql); st.bind(params);
@@ -135,36 +136,50 @@ function viewHymn(n) {
   recent = [n, ...recent.filter(x => x !== n)].slice(0, 30); store.set('recent', recent);
   const texts = q(`SELECT * FROM hymn_text WHERE hymn_number=?`, [n]);
   const refs = refsText(n);
-  const cols = langs().map(l => {
+  const blocksFor = l => {
     const ht = texts.find(t => t.language === l);
-    if (!ht) return '';
+    if (!ht) return null;
     const st = q(`SELECT s.id, s.kind, s.verse_number v, s.variant FROM stanza s WHERE hymn_text_id=? ORDER BY seq`, [ht.id]);
-    let lastVar = null;
-    const body = st.map(s => {
+    const blocks = []; let lastVar = null, cur = null;
+    st.forEach(s => {
       const lines = q(`SELECT text FROM line WHERE stanza_id=? ORDER BY seq`, [s.id]).map(r => esc(r.text)).join('\n');
       let pre = '';
       if (s.variant && s.variant !== lastVar) { pre = `<div class="hint"><b>Version ${esc(s.variant)}</b></div>`; lastVar = s.variant; }
-      return pre + `<div class="stanza ${s.kind}"><span class="vn">${s.kind === 'verse' ? s.v : ''}</span><p>${lines}</p></div>`;
-    }).join('');
+      const html = pre + `<div class="stanza ${s.kind}"><span class="vn">${s.kind === 'verse' ? s.v : ''}</span><p>${lines}</p></div>`;
+      if (s.kind === 'verse' || !cur) { cur = { key: s.kind === 'verse' ? (s.variant || '') + ':' + String(s.v).padStart(3, '0') : '000', html: '' }; blocks.push(cur); }
+      cur.html += html;                         // a refrain stays with the verse it follows
+    });
     const credit = ht.author_line ? `<div class="credit">${esc(ht.author_line)}</div>` : '';
-    const warn = ht.needs_review ? `<div class="warn">This text is still being proof-read — check it against the printed book.</div>` : '';
-    return `<section class="col"><h3>${LANGNAME[l]}</h3>${warn}${body}${credit}</section>`;
-  }).join('');
+    const warn = ht.needs_review ? `<div class="warn">Still being proof-read — check against the printed book.</div>` : '';
+    return { ht, blocks, credit, warn };
+  };
+  const data = langs().map(l => ({ l, ...(blocksFor(l) || {}) })).filter(d => d.ht);
+  let cols;
+  if (lang === 'both' && sbs && data.length === 2) {
+    const keys = [...new Set(data.flatMap(d => d.blocks.map(b => b.key)))].sort();
+    const cell = (d, k) => (d.blocks.find(b => b.key === k)?.html) || '';
+    cols = `<div class="sbs"><h3>English</h3><h3>Twi</h3>${data.map(d => d.warn).some(Boolean) ? `<div>${data[0].warn}</div><div>${data[1].warn}</div>` : ''}` +
+      keys.map(k => `<div class="cell">${cell(data[0], k)}</div><div class="cell">${cell(data[1], k)}</div>`).join('') +
+      `<div>${data[0].credit}</div><div>${data[1].credit}</div></div>`;
+  } else {
+    cols = data.map(d => `<section class="col"><h3>${LANGNAME[d.l]}</h3>${d.warn}${d.blocks.map(b => b.html).join('')}${d.credit}</section>`).join('');
+  }
   const meta = texts.find(t => t.language === firstLang()) || texts[0] || {};
   const isFav = favs.includes(n);
   $('#view').innerHTML = `<article class="hymn">
     <div class="bar"><a href="#/hymn-prev">‹ ${Math.max(1, n - 1)}</a>
       <span><button class="star" id="fav" title="Save">${isFav ? '★' : '☆'}</button>
       <button id="smaller" aria-label="Smaller text">A−</button> <button id="bigger" aria-label="Larger text">A+</button>
-      <button id="wake" title="Keep the screen on">${wake ? '☀ on' : '☀'}</button></span>
+      <button id="wake" title="Keep the screen on">${wake ? '☀ on' : '☀'}</button>${lang === 'both' ? `<button id="sbsbtn" title="Side by side / stacked">${sbs ? '▤ Stacked' : '◫ Side by side'}</button>` : ''}</span>
       <a href="#/hymn-next">${Math.min(850, n + 1)} ›</a></div>
     <h2>Hymn ${n}</h2>
     <div class="meta">${refs.map(r => `<span class="chip">${esc(r)}</span>`).join('')}</div>
     <div class="meta">${[meta.theme, meta.subtheme].filter(Boolean).map(esc).join(' › ')}</div>
-    <div class="cols ${lang === 'both' ? 'both' : ''}" style="margin-top:14px">${cols}</div></article>`;
+    <div class="cols ${lang === 'both' && !sbs ? 'both' : ''}" style="margin-top:14px">${cols}</div></article>`;
   $('#fav').onclick = () => { favs = isFav ? favs.filter(x => x !== n) : [...favs, n]; store.set('favs', favs); viewHymn(n); };
   $('#bigger').onclick = () => { fs = Math.min(40, fs + 2); store.set('fs', fs); renderShell(); };
   $('#smaller').onclick = () => { fs = Math.max(14, fs - 2); store.set('fs', fs); renderShell(); };
+  if ($('#sbsbtn')) $('#sbsbtn').onclick = () => { sbs = !sbs; store.set('sbs', sbs); viewHymn(n); };
   $('#wake').onclick = async () => {
     try { if (wake) { await wake.release(); wake = null; } else wake = await navigator.wakeLock.request('screen'); } catch {}
     $('#wake').textContent = wake ? '☀ on' : '☀';

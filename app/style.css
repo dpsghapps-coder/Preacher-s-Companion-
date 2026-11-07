@@ -35,3 +35,9 @@ details details{margin-left:14px}
 .warn{background:#fff4d6;color:#5b4300;border-radius:8px;padding:6px 10px;font-size:.85rem;margin:8px 0}
 .star{font-size:1.3rem;line-height:1;padding:6px 10px}
 footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:30px}
+.sbs{display:grid;grid-template-columns:1fr 1fr;column-gap:14px;align-items:start}
+.sbs h3{margin:.2em 0 .6em;font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.sbs .cell{border-top:1px solid var(--line);padding-top:10px}
+.sbs .stanza{font-size:calc(var(--fs) * .82);gap:6px}.sbs .stanza.refrain{padding-left:1.2em}
+.sbs .stanza .vn{min-width:1em}
+@media(min-width:700px){.sbs .stanza{font-size:var(--fs)}main{max-width:1000px}}
