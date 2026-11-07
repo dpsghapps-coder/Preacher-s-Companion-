@@ -242,6 +242,22 @@ def build(h):
 def postprocess(st):
     notes = []
     # a bare "Refrain"/"Chorus" label line: text after it is the refrain, a trailing label just means "sing the refrain"
+    # Twi "Nnyeso:" = refrain label (also printed "Nyeso:" / "N nyeso:"): lines from it to the end of the block are the refrain
+    NN = re.compile(r'(?i)^n\s?n?yeso\s*:\s*')
+    pre = []
+    for x in st:
+        idx = next((i for i, t in enumerate(x['lines']) if NN.match(t.strip())), None)
+        if idx is None:
+            pre.append(x)
+            continue
+        head, tail = x['lines'][:idx], x['lines'][idx:]
+        tail[0] = NN.sub('', tail[0].strip())
+        if head:
+            pre.append(dict(x, lines=head))
+            pre.append(dict(x, kind='refrain', verse=None, lines=[t for t in tail if t], flags=[]))
+        else:
+            pre.append(dict(x, kind='refrain', verse=None, lines=[t for t in tail if t]))
+    st = pre
     out_ = []
     for x in st:
         idx = next((i for i, t in enumerate(x['lines']) if re.fullmatch(r'(?i)(refrain|chorus)\.?:?', t.strip())), None)
