@@ -107,5 +107,53 @@
     ]
    }
   ]
+ },
+ {
+  "language": "tw",
+  "number": 27,
+  "header": "Yes. 6:3",
+  "authors": [
+   "O.A.B.",
+   "J.Z. W.E.O.A. 1992"
+  ],
+  "note": "corrected by user from PDF p.14: verse 2 runs from the left column into the right column",
+  "stanzas": [
+   {
+    "kind": "verse",
+    "verse": 1,
+    "lines": [
+     "Wo, Ɔkronkronni,",
+     "Agya, Ba Honhom,",
+     "Soro asafo to wo dwom!",
+     "Yɛn nnipa dwomto",
+     "bedu w’anim hɔ.",
+     "Yɛn nso, yɛn nso, wutie yɛn."
+    ]
+   },
+   {
+    "kind": "verse",
+    "verse": 2,
+    "lines": [
+     "Wo a wo yam yɛ,",
+     "wo yam hyehye wo;",
+     "ma yɛnte wo kasakyerɛ.",
+     "Dom hwehwɛ na hu",
+     "nea wayera.",
+     "Fa yɛn, fa yɛn bɔne f’ri yɛn"
+    ]
+   },
+   {
+    "kind": "verse",
+    "verse": 3,
+    "lines": [
+     "Yɛkamfo Nyame",
+     "na yeyi n’ayɛ;",
+     "anuonyam nka ne din daa.",
+     "Ma w’ahenni mmra",
+     "wiase nyinaa",
+     "Tie yɛn, tie yɛn ɛnɛ. Amen."
+    ]
+   }
+  ]
  }
 ]

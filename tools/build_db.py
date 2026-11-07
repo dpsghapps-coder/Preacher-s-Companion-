@@ -125,6 +125,10 @@ for (lang_, n_), o in OVR.items():
     h_ = (en if lang_ == 'en' else tw)[n_]
     h_['stanzas'] = o['stanzas']
     h_['review'] = ['note: ' + o['note']]
+    if o.get('header'):
+        h_['header'] = o['header']
+    if o.get('authors'):
+        h_['authors'] = o['authors']
 for (lang_, n_), note in OK.items():
     (en if lang_ == 'en' else tw)[n_]['review'] = ['note: ' + note]
 
