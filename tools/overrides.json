@@ -155,5 +155,70 @@
     ]
    }
   ]
+ },
+ {
+  "language": "tw",
+  "number": 116,
+  "header": "Luk. 2:32",
+  "authors": [],
+  "note": "corrected by user from PDF pp.56-57: refrain is the 'Nnyeso' lines; after verses 2 and 3 it is printed in short form ('Anuonyam n.a.')",
+  "stanzas": [
+   {
+    "kind": "verse",
+    "verse": 1,
+    "lines": [
+     "So wunim dwom a abɔfo no toe no?",
+     "B’re a wɔwoo Yesu Kristo no?",
+     "Bere a wɔn nne wosow soro nyinaa",
+     "Na egyigyee asase so no?"
+    ]
+   },
+   {
+    "kind": "refrain",
+    "verse": null,
+    "lines": [
+     "Anuonyam nka Nyame",
+     "wɔ sorosoro no hɔaa,",
+     "Na Asomdwoe mmra asase yi so.",
+     "Anuonyam nka Nyame",
+     "Anuonyam nka Nyame",
+     "Na ’nisɔ wɔ nnipa mu"
+    ]
+   },
+   {
+    "kind": "verse",
+    "verse": 2,
+    "lines": [
+     "So wunim dwom a nguanhwɛfo no toe no?",
+     "B’re a worewɛn wɔn nguan no?",
+     "Bere a soro dɔm twiw bɛn anigyem’",
+     "Wɔ abɔfo dwom dɛdɛ no nti."
+    ]
+   },
+   {
+    "kind": "refrain",
+    "verse": null,
+    "lines": [
+     "Anuonyam n.a."
+    ]
+   },
+   {
+    "kind": "verse",
+    "verse": 3,
+    "lines": [
+     "So wunim asɛm a’nyansafo no tee",
+     "Na wofii apuei tɔnn bae no?",
+     "Wɔnantew sare so na nsroma a wohui,",
+     "No kyerɛɛ wɔn so pɛpɛɛpɛ."
+    ]
+   },
+   {
+    "kind": "refrain",
+    "verse": null,
+    "lines": [
+     "Anuonyam n.a."
+    ]
+   }
+  ]
  }
 ]

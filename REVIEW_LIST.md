@@ -4,7 +4,6 @@ All English hymns are now clean. Remaining Twi hymns (layout problems: first-let
 
 | hymn | PDF page (Twi book) | note |
 |---|---|---|
-| 116 | 56 | note: column-top text treated as refrain; verse lengths uneven (verses [3] vs typical 8 lines) |
 | 203 | 99 | note: column-top text treated as refrain; note: verse order restored from two-column layout; verse l |
 | 230 | 113 | verse lengths uneven (verses [4] vs typical 4 lines) |
 | 251 | 123 | verse numbering [1, 3, 3] |

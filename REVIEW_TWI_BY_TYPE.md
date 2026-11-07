@@ -5,7 +5,6 @@ Page = page in `PRESBY HYMN - TWI.pdf`.
 
 | Hymn | PDF page | Types | Evidence |
 |---|---|---|---|
-| 116 | 56 | 3 | verse lengths [8, 5, 3] |
 | 203 | 99 | 3 | verse lengths [6, 6, 1, 1] |
 | 230 | 113 | 3, 4 | stray text: ":/: Halleluya! :/: 5. Yɛde nne kɛse yi w"; verse lengths [4, 4, 4, 2] |
 | 251 | 123 | 2 | verse order/numbers [1, 3, 3] |
@@ -46,6 +45,6 @@ Page = page in `PRESBY HYMN - TWI.pdf`.
 
 **2. Merged / interleaved columns (verse order or numbers wrong):** 251, 309, 593, 640, 641, 696, 730
 
-**3. Verse–refrain boundaries (uneven verse lengths):** 116, 203, 230, 266, 292, 309, 326, 340, 351, 402, 440, 485, 511, 573, 578, 586, 589, 593, 602, 638, 640, 641, 642, 651, 666, 690, 693, 704, 734, 795, 842
+**3. Verse–refrain boundaries (uneven verse lengths):** 203, 230, 266, 292, 309, 326, 340, 351, 402, 440, 485, 511, 573, 578, 586, 589, 593, 602, 638, 640, 641, 642, 651, 666, 690, 693, 704, 734, 795, 842
 
 **4. Stray text inside a verse:** 230, 402, 651, 666, 693
