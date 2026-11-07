@@ -158,6 +158,7 @@ CREATE TABLE stanza (
     seq INTEGER NOT NULL,          -- order of appearance
     kind TEXT NOT NULL CHECK (kind IN ('verse','refrain')),
     verse_number INTEGER,          -- NULL for refrains
+    variant TEXT,                  -- 'A'/'B' when a hymn is printed in two versions
     UNIQUE (hymn_text_id, seq)
 );
 CREATE TABLE line (
@@ -176,7 +177,7 @@ CREATE TABLE scripture_ref (        -- language independent: refs are the same f
 CREATE INDEX idx_stanza_text ON stanza(hymn_text_id, seq);
 CREATE INDEX idx_ref ON scripture_ref(book, chapter);
 CREATE VIEW stanza_text AS
-    SELECT s.id AS stanza_id, s.hymn_text_id, s.seq, s.kind, s.verse_number,
+    SELECT s.id AS stanza_id, s.hymn_text_id, s.seq, s.kind, s.verse_number, s.variant,
            group_concat(l.text, char(10)) AS body
     FROM stanza s JOIN line l ON l.stanza_id = s.id
     GROUP BY s.id;
@@ -206,11 +207,11 @@ for n in range(1, 851):
         cur = db.execute('INSERT INTO hymn_text(hymn_number,language,scripture_raw,theme,subtheme,first_line,author_line,'
                          'source_page,needs_review,review_notes) VALUES (?,?,?,?,?,?,?,?,?,?)',
                          (n, lang, clean_header(h['header']), th, sub, first, ' | '.join(h['authors']) or None,
-                          h['page'], 1 if h['review'] else 0, '; '.join(h['review']) or None))
+                          h['page'], 1 if any(not r.startswith('note:') for r in h['review']) else 0, '; '.join(h['review']) or None))
         ht = cur.lastrowid
         for i, s in enumerate(h['stanzas'], 1):
-            sc = db.execute('INSERT INTO stanza(hymn_text_id,seq,kind,verse_number) VALUES (?,?,?,?)',
-                            (ht, i, s['kind'], s['verse']))
+            sc = db.execute('INSERT INTO stanza(hymn_text_id,seq,kind,verse_number,variant) VALUES (?,?,?,?,?)',
+                            (ht, i, s['kind'], s['verse'], s.get('variant')))
             for j, ln in enumerate(s['lines'], 1):
                 db.execute('INSERT INTO line(stanza_id,seq,text) VALUES (?,?,?)', (sc.lastrowid, j, ln))
     if n in en:
