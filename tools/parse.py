@@ -53,7 +53,7 @@ def tw_theme_line(l):
     if 'Capecoast' not in l['font']:
         return None
     t = clean(fix_tw(l['text']))
-    if l['size'] >= 11.5 and re.match(rf'^{ROMAN}\.\s+\S', t):
+    if l['size'] >= 9.9 and re.match(rf'^{ROMAN}\.\s+[^a-z]+$', t):
         return ('section', *re.match(rf'^({ROMAN})\.\s+(.*)$', t).groups())
     if l['size'] < 12.1 and centred(l) and 188 < l['top'] < 199 and len(t) <= 60 and re.match(r'^\d+\.?\s+\S', t):
         return ('sub', *re.match(r'^(\d+)\.?\s+(.*)$', t).groups())
@@ -110,7 +110,8 @@ for idx, l in enumerate(allflat):
             th = tw_theme_line(l)
             if not th and l['font'].endswith('Capecoast') and l['size'] < 12.1 and centred(l) \
                     and re.match(r'^\d+\.\s+\S', l['text']) \
-                    and len(l['text']) <= 60 and idx > 0 and 'Italic' in allflat[idx - 1]['font'] \
+                    and len(l['text']) <= 60 and idx > 0 and ('Italic' in allflat[idx - 1]['font'] or
+                                                        (tw_theme_line(allflat[idx - 1]) or ('',))[0] == 'section') \
                     and idx + 1 < len(allflat) and starts_hymn(allflat[idx + 1], last):
                 mm = re.match(r'^(\d+)\.\s+(.*)$', clean(fix_tw(l['text'])))
                 th = ('sub', mm.group(1), mm.group(2))
