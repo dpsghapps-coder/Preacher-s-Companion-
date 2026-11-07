@@ -49,3 +49,14 @@ Needs `pdfplumber` and `pdftotext` (poppler).
 ## Notes on the Twi text
 The Twi PDF uses a legacy font that stores ɔ ɛ Ɔ Ɛ as `4 1 $ !`; `tools/parse.py` decodes them.
 Themes: English from the printed contents list; Twi from the section headings printed on each page.
+
+## Web app (offline)
+`app/` is a static, installable web app that reads `app/hymnal.db` in the browser (sql.js). Search by hymn number, words
+(English or Twi, `ɔ`/`ɛ` optional), or Bible passage (e.g. `Psalm 23`); browse by theme; English / Twi / both; save hymns; text size; keep-screen-on.
+Works offline after the first visit (service worker).
+
+```
+python3 tools/build_app_db.py        # refresh app/hymnal.db from hymnal.db
+cd app && python3 -m http.server 8000   # then open http://localhost:8000
+```
+Host the `app/` folder on any static host (Cloudflare Pages, Netlify, GitHub Pages). Bump `V` in `app/sw.js` when the database changes.
