@@ -66,3 +66,7 @@ mark{background:#ffe27a;color:#1d2330;border-radius:3px;padding:0 2px}
 .frontcover{margin:10px auto 18px;text-align:center}
 .frontcover .cover{width:min(300px,70%);height:auto}
 .frontcover figcaption{font-size:.85rem;margin-top:8px}
+
+a.ref{color:var(--accent);text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;white-space:nowrap}
+a.ref.hit{background:#ffe27a;color:#1d2330;border-radius:3px;padding:0 2px;text-decoration:none}
+a.chip{text-decoration:none}
