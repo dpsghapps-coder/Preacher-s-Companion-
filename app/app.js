@@ -23,6 +23,15 @@ function fold(t) {
     .replace(/[’']/g, '').replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
+/* ------------------------------------------------------------- loading placeholders */
+function skeleton(label, kind = 'list', n = 7) {
+  const w = [[88, 55], [72, 40], [95, 60], [65, 35], [80, 50], [90, 45], [70, 58], [84, 38]];
+  const body = kind === 'text'
+    ? `<div class="skel-text">${[96, 100, 92, 98, 60, 100, 94, 97, 88, 100, 45].map(x => `<span class="skel" style="width:${x}%"></span>`).join('')}</div>`
+    : Array.from({ length: n }, (_, i) => `<div class="skel-row"><span class="skel n"></span><span class="col"><span class="skel" style="width:${w[i % 8][0]}%"></span><span class="skel" style="width:${w[i % 8][1]}%;height:10px"></span></span></div>`).join('');
+  return `<div class="loading" role="status"><div class="head"><span class="spinner"></span><span>${esc(label)}</span></div><div class="bar-loop"></div>${body}</div>`;
+}
+
 /* ------------------------------------------------------------- shell */
 function setLang(l) {
   lang = l; store.set('lang', l); renderShell(); route();
@@ -262,7 +271,7 @@ function hl(text, q) {
   return out + esc(text.slice(pos));
 }
 async function viewStaff() {
-  $('#view').innerHTML = '<p class="muted pad">Loading the library…</p>';
+  $('#view').innerHTML = skeleton('Opening the library…');
   try { if (!await loadStaff()) return; } catch (e) { $('#view').innerHTML = `<p class="warn">Could not load the library: ${esc(e.message)}</p>`; return; }
   $('#view').innerHTML = `<h2 style="margin:.2em 0">The Shepherd’s Staff</h2>
     <div class="hint">Ralph Mahoney (ed.), World MAP · ${spages.length} pages · full-text search</div>
@@ -287,6 +296,7 @@ async function viewStaff() {
   run(); if (!/Mobi|Android/i.test(navigator.userAgent)) inp.focus();
 }
 async function viewStaffPage(n, q) {
+  if (!sdb) $('#view').innerHTML = skeleton('Opening the library…', 'text');
   try { if (!await loadStaff()) return; } catch (e) { $('#view').innerHTML = `<p class="warn">${esc(e.message)}</p>`; return; }
   const p = spages[n - 1]; if (!p) { $('#view').innerHTML = '<p class="muted pad">No such page.</p>'; return; }
   const d = sdivs.find(x => x.id === p.d);
@@ -365,7 +375,7 @@ window.signOut = signOut;
     try { const copy = resp.clone(); caches.open('hymnal-data').then(c => c.put('hymnal.db', copy)).catch(() => {}); } catch {}
     const SQL = await initSqlJs({ locateFile: f => 'vendor/' + f });
     db = new SQL.Database(new Uint8Array(await resp.arrayBuffer()));
-    document.body.dataset.ready = '1';
+    document.body.dataset.ready = '1'; $('#view').removeAttribute('aria-busy');
     route();
   } catch (e) {
     $('#view').innerHTML = `<p class="warn">Could not load the hymnal: ${esc(e.message)}. If you opened this file directly, serve the folder with a web server (e.g. <code>python3 -m http.server</code>).</p>`;
