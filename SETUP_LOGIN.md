@@ -1,6 +1,6 @@
 # Private sign-in (Google) – setup
 
-The app is open to the public except the hymn database, which is only sent to signed-in people whose Google email is on your list.
+The app is open to the public except the hymn database and the library (`hymnal.db`, `staff.db`), which are only sent to signed-in people whose Google email is on your list.
 No card and no app password are needed.
 
 ## 1. Google: create a sign-in client ID (once, ~5 min, desktop browser)
@@ -20,6 +20,7 @@ Edit `app/config.js`: `window.PC_CONFIG = { googleClientId: 'PASTE-CLIENT-ID-HER
 | `GOOGLE_CLIENT_ID` | text | same Client ID |
 | `ALLOWED_EMAILS` | text | `you@gmail.com, friend@gmail.com` (comma separated) |
 | `SESSION_SECRET` | **secret** | any random string of 32+ characters (e.g. from a password manager) |
+| `REQUIRE_LOGIN` | text | `1` — turns the sign-in requirement ON. Leave it unset and the site stays open, as before. |
 
 Then redeploy. To add or remove a person later, edit `ALLOWED_EMAILS` (removal takes effect immediately for new requests;
 a copy already saved on that person's phone stays there).

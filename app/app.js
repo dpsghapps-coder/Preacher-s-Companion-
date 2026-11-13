@@ -88,8 +88,9 @@ function viewSearch() {
       res.innerHTML = rec.length ? `<div class="hint">Recently opened</div><ul class="list">${rowsFor(rec)}</ul>` : '';
       return;
     }
-    res.innerHTML = r.nums.length ? `<div class="hint">${esc(r.note)} · ${r.nums.length}${r.nums.length === 120 ? '+' : ''} hymn(s)</div><ul class="list">${rowsFor(r.nums)}</ul>`
-      : `<p class="muted">${esc(r.note || 'No hymns found.')}</p>`;
+    const book = /^\d{1,3}$/.test(inp.value.trim()) ? '' : `<p class="hint"><a href="#/staff/q/${encodeURIComponent(inp.value.trim())}">Search “${esc(inp.value.trim())}” in The Shepherd’s Staff →</a></p>`;
+    res.innerHTML = (r.nums.length ? `<div class="hint">${esc(r.note)} · ${r.nums.length}${r.nums.length === 120 ? '+' : ''} hymn(s)</div><ul class="list">${rowsFor(r.nums)}</ul>`
+      : `<p class="muted">${esc(r.note || 'No hymns found.')}</p>`) + book;
   };
   let t; inp.addEventListener('input', () => { clearTimeout(t); t = setTimeout(run, 150); });
   inp.addEventListener('keydown', e => { if (e.key === 'Enter' && /^\d{1,3}$/.test(inp.value.trim())) location.hash = '#/h/' + +inp.value.trim(); });
@@ -195,13 +196,128 @@ document.addEventListener('keydown', e => {
   if (e.key === 'ArrowRight') location.hash = '#/h/' + Math.min(850, +m[1] + 1);
 });
 
+
+/* ------------------------------------------------------------- Library: The Shepherd's Staff */
+let sdb = null, sdivs = [], spages = null, staffQuery = '';
+const norm1 = ch => /[a-z0-9]/.test(ch) ? ch : ({ 'à': 'a', 'á': 'a', 'â': 'a', 'ä': 'a', 'é': 'e', 'è': 'e', 'ê': 'e', 'ï': 'i', 'í': 'i', 'ó': 'o', 'ö': 'o', 'ô': 'o', 'ú': 'u', 'ü': 'u', 'ñ': 'n', 'ɔ': 'o', 'ɛ': 'e' }[ch] || ' ');
+const foldKeep = t => { let o = ''; for (const ch of t.toLowerCase()) o += norm1(ch); return o; };   // same length as t (UTF-16 safe enough for English)
+const escRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const STOP = new Set('a an and are as at be but by for from has have he her him his i in is it its me my of on or our she so that the their them they this to us was we were what when who will with you your'.split(' '));
+function queryWords(q) {
+  // a Bible reference such as "Ps 37:5" or "1 Cor 13" is searched as an exact phrase
+  if (!/"/.test(q) && /^\s*(?:[1-3]\s?)?[A-Za-z]+\.?\s*\d+(?:\s*[:.]\s*\d+)?\s*$/.test(q)) q = '"' + q + '"';
+  const phrases = [...q.matchAll(/"([^"]+)"/g)].map(m => foldKeep(m[1]).replace(/\s+/g, ' ').trim()).filter(Boolean);
+  const rest = q.replace(/"[^"]*"/g, ' ');
+  let words = foldKeep(rest).split(/\s+/).filter(w => w.length > 0);
+  const content = words.filter(w => !STOP.has(w));
+  if (content.length) words = content;                       // ignore filler words like "the", "your"
+  const whole = words.length > 1 && !phrases.length ? words.join(' ') : '';
+  return { phrases, words, whole };
+}
+async function loadStaff() {
+  if (sdb) return true;
+  const resp = await fetch('staff.db', { credentials: 'same-origin' });
+  if (resp.status === 401) { showLogin(); return false; }
+  if (!resp.ok) throw new Error('staff.db ' + resp.status);
+  try { const copy = resp.clone(); caches.open('hymnal-data').then(c => c.put('staff.db', copy)).catch(() => {}); } catch {}
+  const SQL = await initSqlJs({ locateFile: f => 'vendor/' + f });
+  sdb = new SQL.Database(new Uint8Array(await resp.arrayBuffer()));
+  const sq = (sql, p = []) => { const st = sdb.prepare(sql); st.bind(p); const o = []; while (st.step()) o.push(st.getAsObject()); st.free(); return o; };
+  sdivs = sq('SELECT * FROM staff_division ORDER BY start_page');
+  spages = sq('SELECT page, division_id d, fmt, text FROM staff_page ORDER BY page').map(r => ({ ...r, f: ' ' + foldKeep(r.text).replace(/\s+/g, ' ') + ' ' }));
+  return true;
+}
+function staffSearch(q) {
+  const { phrases, words, whole } = queryWords(q);
+  if (!phrases.length && !words.length) return [];
+  const out = [];
+  const idf = {};                                            // rare words weigh more than common ones
+  for (const w of words) { let df = 0; for (const p of spages) if (p.f.includes(' ' + w)) df++; idf[w] = Math.log(1 + spages.length / Math.max(1, df)); }
+  for (const p of spages) {
+    let score = 0, ok = true;
+    for (const w of words) { const c = p.f.split(' ' + w).length - 1; if (!c) { ok = false; break; } score += c * idf[w]; }
+    if (!ok) continue;
+    for (const ph of phrases) { const c = p.f.split(ph).length - 1; if (!c) { ok = false; break; } score += c * 5; }
+    if (ok && whole) score += 4 * (p.f.split(' ' + whole).length - 1);     // all words next to each other ranks first
+    if (ok) out.push({ p, score });
+  }
+  return out.sort((a, b) => b.score - a.score || a.p.page - b.p.page);
+}
+function snippet(text, q) {
+  const { phrases, words } = queryWords(q);
+  const f = foldKeep(text); let at = -1;
+  for (const t of [...phrases, ...[...words].sort((x, y) => y.length - x.length)]) { const i = f.search(new RegExp('(^|[^a-z0-9])' + escRe(t))); if (i >= 0) { at = i + (f[i] === ' ' || !/[a-z0-9]/.test(f[i]) ? 1 : 0); break; } }
+  if (at < 0) at = 0;
+  const from = Math.max(0, at - 70), to = Math.min(text.length, at + 150);
+  return (from ? '… ' : '') + hl(text.slice(from, to).replace(/\s+/g, ' '), q) + (to < text.length ? ' …' : '');
+}
+function hl(text, q) {
+  const { phrases, words } = queryWords(q); const terms = [...phrases, ...words].filter(Boolean);
+  if (!terms.length) return esc(text);
+  const f = foldKeep(text); const marks = [];
+  for (const t of terms) { const re = new RegExp('(?<![a-z0-9])' + escRe(t).replace(/ /g, '[^a-z0-9]+') + '[a-z0-9]*', 'g'); let m; while ((m = re.exec(f))) { marks.push([m.index, m.index + m[0].length]); if (m[0].length === 0) re.lastIndex++; } }
+  marks.sort((x, y) => x[0] - y[0]);
+  let out = '', pos = 0;
+  for (const [a, b] of marks) { if (a < pos) continue; out += esc(text.slice(pos, a)) + '<mark>' + esc(text.slice(a, b)) + '</mark>'; pos = b; }
+  return out + esc(text.slice(pos));
+}
+async function viewStaff() {
+  $('#view').innerHTML = '<p class="muted pad">Loading the library…</p>';
+  try { if (!await loadStaff()) return; } catch (e) { $('#view').innerHTML = `<p class="warn">Could not load the library: ${esc(e.message)}</p>`; return; }
+  $('#view').innerHTML = `<h2 style="margin:.2em 0">The Shepherd’s Staff</h2>
+    <div class="hint">Ralph Mahoney (ed.), World MAP · ${spages.length} pages · full-text search</div>
+    <input id="sq" type="search" placeholder="Search the book (use “quotes” for an exact phrase)" autocomplete="off" enterkeyhint="search" value="${esc(staffQuery)}">
+    <div id="sres"></div>`;
+  const inp = $('#sq'), res = $('#sres');
+  const run = () => {
+    staffQuery = inp.value; const q = inp.value.trim();
+    if (!q) {
+      res.innerHTML = `<div class="hint" style="margin-top:14px">Browse</div><ul class="list">${sdivs.map(d => `<li><a href="#/staff/p/${d.start_page}"><span class="num">${d.start_page}</span><span class="first">${esc(d.title)}<small>pages ${d.start_page}–${d.end_page}</small></span></a></li>`).join('')}</ul>
+      <form id="jump" class="bar" style="margin-top:14px"><label class="hint">Go to page</label><input id="jn" type="number" min="1" max="${spages.length}" style="width:6em;padding:8px;font:inherit;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--fg)"><button class="btn">Go</button></form>`;
+      $('#jump').onsubmit = e => { e.preventDefault(); const n = +$('#jn').value; if (n >= 1 && n <= spages.length) location.hash = '#/staff/p/' + n; };
+      return;
+    }
+    const hits = staffSearch(q), shown = hits.slice(0, 80);
+    res.innerHTML = hits.length ? `<div class="hint" style="margin-top:12px">${hits.length} page(s)${hits.length > 80 ? ' · showing the best 80' : ''}</div><ul class="list">${shown.map(h => {
+      const d = sdivs.find(x => x.id === h.p.d);
+      return `<li><a href="#/staff/p/${h.p.page}/${encodeURIComponent(q)}"><span class="num">${h.p.page}</span><span class="first">${snippet(h.p.text, q)}<small>${esc(d ? d.title : '')}</small></span></a></li>`;
+    }).join('')}</ul>` : '<p class="muted">No pages match all of those words.</p>';
+  };
+  let t; inp.addEventListener('input', () => { clearTimeout(t); t = setTimeout(run, 200); });
+  run(); if (!/Mobi|Android/i.test(navigator.userAgent)) inp.focus();
+}
+async function viewStaffPage(n, q) {
+  try { if (!await loadStaff()) return; } catch (e) { $('#view').innerHTML = `<p class="warn">${esc(e.message)}</p>`; return; }
+  const p = spages[n - 1]; if (!p) { $('#view').innerHTML = '<p class="muted pad">No such page.</p>'; return; }
+  const d = sdivs.find(x => x.id === p.d);
+  const qs = q ? '/' + encodeURIComponent(q) : '';
+  const body = p.text ? (p.fmt === 'l' ? `<div style="white-space:pre-line">${hl(p.text, q)}</div>` : p.text.split('\n\n').map(t => `<p>${hl(t, q)}</p>`).join('')) : '<p class="muted">(blank page)</p>';
+  $('#view').innerHTML = `<article class="hymn staffpage"><div class="bar"><a href="#/staff/p/${Math.max(1, n - 1)}${qs}">‹ ${Math.max(1, n - 1)}</a>
+    <span><a href="#/staff" onclick="staffQuery=${esc(JSON.stringify(q))}">☰ Search</a> <button id="smaller">A−</button> <button id="bigger">A+</button></span>
+    <a href="#/staff/p/${Math.min(spages.length, n + 1)}${qs}">${Math.min(spages.length, n + 1)} ›</a></div>
+    <div class="meta">${esc(d ? d.title : '')} · page ${n} of ${spages.length}</div>
+    <div class="prose" style="font-size:var(--fs);line-height:1.5;margin-top:10px">${body}</div></article>`;
+  $('#bigger').onclick = () => { fs = Math.min(40, fs + 2); store.set('fs', fs); renderShell(); };
+  $('#smaller').onclick = () => { fs = Math.max(14, fs - 2); store.set('fs', fs); renderShell(); };
+  const first = $('.prose mark'); if (first) first.scrollIntoView({ block: 'center' }); else window.scrollTo(0, 0);
+}
+document.addEventListener('keydown', e => {
+  const m = location.hash.match(/^#\/staff\/p\/(\d+)(\/.*)?$/); if (!m || e.target.matches('input')) return;
+  if (e.key === 'ArrowLeft') location.hash = '#/staff/p/' + Math.max(1, +m[1] - 1) + (m[2] || '');
+  if (e.key === 'ArrowRight') location.hash = '#/staff/p/' + (+m[1] + 1) + (m[2] || '');
+});
+
 /* ------------------------------------------------------------- router + boot */
 function route() {
   if (!db) return;
   const h = location.hash || '#/';
-  const tab = h.startsWith('#/themes') ? 'themes' : h.startsWith('#/saved') ? 'saved' : 'search';
+  const tab = h.startsWith('#/themes') ? 'themes' : h.startsWith('#/saved') ? 'saved' : h.startsWith('#/staff') ? 'staff' : 'search';
   document.querySelectorAll('#tabs a').forEach(a => a.classList.toggle('on', a.dataset.tab === tab));
   const m = h.match(/^#\/h\/(\d+)/);
+  const sp = h.match(/^#\/staff\/p\/(\d+)(?:\/(.*))?$/);
+  const sq = h.match(/^#\/staff\/q\/(.*)$/);
+  if (sq) { staffQuery = decodeURIComponent(sq[1]); location.replace('#/staff'); return; }
+  if (tab === 'staff') { sp ? viewStaffPage(+sp[1], decodeURIComponent(sp[2] || '')) : viewStaff(); return; }
   if (m) viewHymn(+m[1]); else if (tab === 'themes') viewThemes(); else if (tab === 'saved') viewSaved(); else viewSearch();
 }
 window.addEventListener('hashchange', route);
