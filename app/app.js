@@ -93,6 +93,7 @@ function viewSearch() {
   };
   let t; inp.addEventListener('input', () => { clearTimeout(t); t = setTimeout(run, 150); });
   inp.addEventListener('keydown', e => { if (e.key === 'Enter' && /^\d{1,3}$/.test(inp.value.trim())) location.hash = '#/h/' + +inp.value.trim(); });
+  $('#view').insertAdjacentHTML('beforeend', '<footer><a href="#" onclick="signOut();return false">Sign out</a></footer>');
   run(); if (!/Mobi|Android/i.test(navigator.userAgent)) inp.focus();
 }
 
@@ -205,18 +206,56 @@ function route() {
 }
 window.addEventListener('hashchange', route);
 
+/* ------------------------------------------------------------- sign-in (Google) */
+function showLogin(msg) {
+  const id = (window.PC_CONFIG || {}).googleClientId;
+  $('#view').innerHTML = `<div class="pad" style="text-align:center"><h2>Sign in</h2>
+    <p class="muted">This hymnal is private. Sign in with an approved Google account.</p>
+    ${id ? '<div id="gbtn" style="display:inline-block;min-height:44px"></div>' : '<p class="warn">Sign-in is not set up yet (missing Google client ID in config.js).</p>'}
+    <p id="loginmsg" class="warn" style="${msg ? '' : 'display:none'}">${esc(msg || '')}</p></div>`;
+  if (!id) return;
+  const init = () => {
+    google.accounts.id.initialize({ client_id: id, callback: async resp => {
+      const note = $('#loginmsg'); note.style.display = 'none';
+      try {
+        const r = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ credential: resp.credential }) });
+        const j = await r.json().catch(() => ({}));
+        if (r.ok) { location.reload(); return; }
+        note.textContent = r.status === 403 ? `${j.email || 'That account'} is not on the approved list. Ask the owner to add it.` : 'Sign-in failed. Please try again.';
+      } catch { note.textContent = 'No connection. Sign-in needs the internet the first time.'; }
+      note.style.display = '';
+    } });
+    google.accounts.id.renderButton($('#gbtn'), { theme: 'outline', size: 'large', text: 'signin_with' });
+  };
+  if (window.google?.accounts?.id) return init();
+  const sc = document.createElement('script'); sc.src = 'https://accounts.google.com/gsi/client'; sc.async = true; sc.onload = init;
+  sc.onerror = () => { $('#loginmsg').textContent = 'Could not reach Google. Check your connection.'; $('#loginmsg').style.display = ''; };
+  document.head.appendChild(sc);
+}
+async function signOut() {
+  try { await fetch('/api/logout', { method: 'POST' }); } catch {}
+  try { await caches.delete('hymnal-data'); } catch {}
+  location.reload();
+}
+window.signOut = signOut;
+
 (async () => {
   renderShell();
   try {
-    const [SQL, buf] = await Promise.all([
-      initSqlJs({ locateFile: f => 'vendor/' + f }),
-      fetch('hymnal.db').then(r => { if (!r.ok) throw new Error('hymnal.db ' + r.status); return r.arrayBuffer(); })
-    ]);
-    db = new SQL.Database(new Uint8Array(buf));
+    const resp = await fetch('hymnal.db', { credentials: 'same-origin' });
+    if (resp.status === 401) { showLogin(); registerSW(); return; }
+    if (!resp.ok) throw new Error('hymnal.db ' + resp.status);
+    // keep a private offline copy right away (the service worker is not in charge yet on the very first visit)
+    try { const copy = resp.clone(); caches.open('hymnal-data').then(c => c.put('hymnal.db', copy)).catch(() => {}); } catch {}
+    const SQL = await initSqlJs({ locateFile: f => 'vendor/' + f });
+    db = new SQL.Database(new Uint8Array(await resp.arrayBuffer()));
     document.body.dataset.ready = '1';
     route();
   } catch (e) {
     $('#view').innerHTML = `<p class="warn">Could not load the hymnal: ${esc(e.message)}. If you opened this file directly, serve the folder with a web server (e.g. <code>python3 -m http.server</code>).</p>`;
   }
-  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
+  registerSW();
 })();
+function registerSW() {
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
+}
