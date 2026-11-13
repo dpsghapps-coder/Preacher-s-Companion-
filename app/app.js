@@ -273,8 +273,9 @@ function hl(text, q) {
 async function viewStaff() {
   $('#view').innerHTML = skeleton('Opening the library…');
   try { if (!await loadStaff()) return; } catch (e) { $('#view').innerHTML = `<p class="warn">Could not load the library: ${esc(e.message)}</p>`; return; }
-  $('#view').innerHTML = `<h2 style="margin:.2em 0">The Shepherd’s Staff</h2>
-    <div class="hint">Ralph Mahoney (ed.), World MAP · ${spages.length} pages · full-text search</div>
+  $('#view').innerHTML = `<div class="bookhead"><img class="cover" src="shepherds-staff-cover.jpg" width="708" height="1000" alt="The Shepherd’s Staff — book cover">
+    <div><h2 style="margin:.2em 0">The Shepherd’s Staff</h2>
+    <div class="hint">Ralph Mahoney (ed.), World MAP · ${spages.length} pages · full-text search</div></div></div>
     <input id="sq" type="search" placeholder="Search the book (use “quotes” for an exact phrase)" autocomplete="off" enterkeyhint="search" value="${esc(staffQuery)}">
     <div id="sres"></div>`;
   const inp = $('#sq'), res = $('#sres');
@@ -301,11 +302,12 @@ async function viewStaffPage(n, q) {
   const p = spages[n - 1]; if (!p) { $('#view').innerHTML = '<p class="muted pad">No such page.</p>'; return; }
   const d = sdivs.find(x => x.id === p.d);
   const qs = q ? '/' + encodeURIComponent(q) : '';
-  const body = p.text ? (p.fmt === 'l' ? `<div style="white-space:pre-line">${hl(p.text, q)}</div>` : p.text.split('\n\n').map(t => `<p>${hl(t, q)}</p>`).join('')) : '<p class="muted">(blank page)</p>';
+  const body = p.text ? (p.fmt === 'l' ? `<div style="white-space:pre-line">${hl(p.text, q)}</div>` : p.text.split('\n\n').map(t => `<p>${hl(t, q)}</p>`).join('')) : (n === 1 ? '' : '<p class="muted">(blank page)</p>');
   $('#view').innerHTML = `<article class="hymn staffpage"><div class="bar"><a href="#/staff/p/${Math.max(1, n - 1)}${qs}">‹ ${Math.max(1, n - 1)}</a>
     <span><a href="#/staff" onclick="staffQuery=${esc(JSON.stringify(q))}">☰ Search</a> <button id="smaller">A−</button> <button id="bigger">A+</button></span>
     <a href="#/staff/p/${Math.min(spages.length, n + 1)}${qs}">${Math.min(spages.length, n + 1)} ›</a></div>
     <div class="meta">${esc(d ? d.title : '')} · page ${n} of ${spages.length}</div>
+    ${n === 1 ? '<figure class="frontcover"><img class="cover" src="shepherds-staff-cover.jpg" width="708" height="1000" alt="The Shepherd’s Staff — book cover"><figcaption class="muted">The Shepherd’s Staff · Ralph Mahoney (ed.), World MAP</figcaption></figure>' : ''}
     <div class="prose" style="font-size:var(--fs);line-height:1.5;margin-top:10px">${body}</div></article>`;
   $('#bigger').onclick = () => { fs = Math.min(40, fs + 2); store.set('fs', fs); renderShell(); };
   $('#smaller').onclick = () => { fs = Math.max(14, fs - 2); store.set('fs', fs); renderShell(); };
