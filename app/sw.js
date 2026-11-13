@@ -1,4 +1,4 @@
-const V='hymnal-v8', DATA='hymnal-data';
+const V='hymnal-v9', DATA='hymnal-data';
 // The database is private: never precached, cached only after a successful signed-in download, and kept across versions.
 const FILES=['./','index.html','app.js','config.js','style.css','manifest.webmanifest','icon.svg','shepherds-staff-cover.jpg','vendor/sql-wasm.js','vendor/sql-wasm.wasm'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(V).then(c=>c.addAll(FILES)).then(()=>self.skipWaiting()))});
@@ -11,7 +11,8 @@ self.addEventListener('fetch',e=>{
   if(dbm){const key=dbm[1]+'.db';
     e.respondWith((async()=>{
       const cache=await caches.open(DATA), hit=await cache.match(key);
-      const net=fetch(r).then(async res=>{ if(res.ok) await cache.put(key,res.clone()); return res; });
+      const net=fetch(r).then(async res=>{ if(res.ok) await cache.put(key,res.clone()); else if(res.status===401) await cache.delete(key); return res;   // access withdrawn: drop the offline copy
+       });
       if(hit){ net.catch(()=>{}); return hit; }                   // stale-while-revalidate
       return net;                                                 // 401 passes through untouched (not cached)
     })());

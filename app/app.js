@@ -323,49 +323,120 @@ document.addEventListener('keydown', e => {
 function route() {
   if (!db) return;
   const h = location.hash || '#/';
-  const tab = h.startsWith('#/themes') ? 'themes' : h.startsWith('#/saved') ? 'saved' : h.startsWith('#/staff') ? 'staff' : 'search';
+  const tab = h.startsWith('#/admin') ? 'admin' : h.startsWith('#/themes') ? 'themes' : h.startsWith('#/saved') ? 'saved' : h.startsWith('#/staff') ? 'staff' : 'search';
   document.querySelectorAll('#tabs a').forEach(a => a.classList.toggle('on', a.dataset.tab === tab));
   const m = h.match(/^#\/h\/(\d+)/);
   const sp = h.match(/^#\/staff\/p\/(\d+)(?:\/(.*))?$/);
   const sq = h.match(/^#\/staff\/q\/(.*)$/);
   if (sq) { staffQuery = decodeURIComponent(sq[1]); location.replace('#/staff'); return; }
+  if (tab === 'admin') { viewAdmin(); return; }
   if (tab === 'staff') { sp ? viewStaffPage(+sp[1], decodeURIComponent(sp[2] || '')) : viewStaff(); return; }
   if (m) viewHymn(+m[1]); else if (tab === 'themes') viewThemes(); else if (tab === 'saved') viewSaved(); else viewSearch();
 }
 window.addEventListener('hashchange', route);
 
-/* ------------------------------------------------------------- sign-in (Google) */
+/* ------------------------------------------------------------- sign-in (Firebase) + access requests */
+const CFG = () => window.PC_CONFIG || {};
+const FB_VER = '10.12.2';
+let fbp = null, me = { email: null, admin: false };
+function loadScript(src) { return new Promise((ok, no) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = () => no(new Error('Could not reach Google. Check your connection.')); document.head.appendChild(s); }); }
+function fb() {
+  const cfg = CFG().firebase || {};
+  if (!cfg.apiKey || !cfg.projectId) return Promise.reject(new Error('Sign-in is not set up yet (add the Firebase settings to config.js).'));
+  return fbp ||= (async () => {
+    if (!window.firebase) for (const m of ['app', 'auth', 'firestore']) await loadScript(`https://www.gstatic.com/firebasejs/${FB_VER}/firebase-${m}-compat.js`);
+    if (!firebase.apps.length) firebase.initializeApp(cfg);
+    return { auth: firebase.auth(), fs: firebase.firestore() };
+  })().catch(e => { fbp = null; throw e; });
+}
+const note = (html, cls = 'warn') => `<p class="${cls}">${html}</p>`;
+
+async function googleSignIn() {
+  const { auth } = await fb();
+  const provider = new firebase.auth.GoogleAuthProvider();
+  try { await auth.signInWithPopup(provider); }
+  catch (e) { if (['auth/popup-blocked', 'auth/operation-not-supported-in-this-environment'].includes(e.code)) await auth.signInWithRedirect(provider); else if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') throw e; }
+}
+// make sure there is a request on file, then ask the server whether this person may open the books
+async function enter(user) {
+  const { fs } = await fb();
+  const ref = fs.collection('users').doc(user.uid);
+  let snap = null; try { snap = await ref.get(); } catch {}
+  const isAdmin = String(user.email || '').toLowerCase() === String(CFG().adminEmail || '').toLowerCase();
+  if (!isAdmin && (!snap || !snap.exists)) { try { await ref.set({ email: user.email, name: user.displayName || '', status: 'pending', requestedAt: firebase.firestore.FieldValue.serverTimestamp() }); } catch {} }
+  const r = await fetch('/api/session', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idToken: await user.getIdToken(true) }) });
+  const j = await r.json().catch(() => ({}));
+  return { ok: r.ok, status: j.status || (r.ok ? 'approved' : 'error'), email: j.email || user.email };
+}
 function showLogin(msg) {
-  const id = (window.PC_CONFIG || {}).googleClientId;
+  const ready = !!(CFG().firebase || {}).apiKey;
+  $('#view').removeAttribute('aria-busy');
   $('#view').innerHTML = `<div class="pad" style="text-align:center"><h2>Sign in</h2>
-    <p class="muted">This hymnal is private. Sign in with an approved Google account.</p>
-    ${id ? '<div id="gbtn" style="display:inline-block;min-height:44px"></div>' : '<p class="warn">Sign-in is not set up yet (missing Google client ID in config.js).</p>'}
-    <p id="loginmsg" class="warn" style="${msg ? '' : 'display:none'}">${esc(msg || '')}</p></div>`;
-  if (!id) return;
-  const init = () => {
-    google.accounts.id.initialize({ client_id: id, callback: async resp => {
-      const note = $('#loginmsg'); note.style.display = 'none';
-      try {
-        const r = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ credential: resp.credential }) });
-        const j = await r.json().catch(() => ({}));
-        if (r.ok) { location.reload(); return; }
-        note.textContent = r.status === 403 ? `${j.email || 'That account'} is not on the approved list. Ask the owner to add it.` : 'Sign-in failed. Please try again.';
-      } catch { note.textContent = 'No connection. Sign-in needs the internet the first time.'; }
-      note.style.display = '';
-    } });
-    google.accounts.id.renderButton($('#gbtn'), { theme: 'outline', size: 'large', text: 'signin_with' });
+    <p class="muted">This hymnal is private. Sign in with your Google account. If you are new, your request is sent to the administrator for approval.</p>
+    ${ready ? '<button class="btn" id="gsign" style="padding:12px 20px;font-weight:600">Sign in with Google</button>' : note('Sign-in is not set up yet (add the Firebase settings to config.js).')}
+    <div id="loginmsg">${msg ? note(esc(msg)) : ''}</div></div>`;
+  if (!ready) return;
+  const out = h => { $('#loginmsg').innerHTML = h; };
+  const go = async user => {
+    out('<p class="muted">Checking your access…</p>');
+    try {
+      const r = await enter(user);
+      if (r.ok) { location.reload(); return; }
+      if (r.status === 'denied') out(note(`${esc(r.email)} was not approved. Please contact the administrator.`) + '<p><button class="btn" id="so">Use another account</button></p>');
+      else if (r.status === 'error') out(note('Could not check your access. Try again.') + '<p><button class="btn" id="so">Try again</button></p>');
+      else out(`<div class="warn" style="background:var(--soft);color:var(--fg)"><b>Request sent.</b><br>${esc(r.email)} is waiting for approval from the administrator. Come back later and tap “Check again”.</div>
+        <p><button class="btn" id="again">Check again</button> <button class="btn" id="so">Use another account</button></p>`);
+      const so = $('#so'); if (so) so.onclick = async () => { await (await fb()).auth.signOut(); showLogin(); };
+      const ag = $('#again'); if (ag) ag.onclick = () => go(user);
+    } catch (e) { out(note(esc(e.message || 'Something went wrong.'))); }
   };
-  if (window.google?.accounts?.id) return init();
-  const sc = document.createElement('script'); sc.src = 'https://accounts.google.com/gsi/client'; sc.async = true; sc.onload = init;
-  sc.onerror = () => { $('#loginmsg').textContent = 'Could not reach Google. Check your connection.'; $('#loginmsg').style.display = ''; };
-  document.head.appendChild(sc);
+  $('#gsign').onclick = async () => { try { await googleSignIn(); } catch (e) { out(note(esc(e.message || 'Sign-in failed.'))); } };
+  fb().then(({ auth }) => auth.onAuthStateChanged(u => { if (u) go(u); })).catch(e => out(note(esc(e.message))));
 }
 async function signOut() {
   try { await fetch('/api/logout', { method: 'POST' }); } catch {}
   try { await caches.delete('hymnal-data'); } catch {}
+  try { if (fbp) await (await fbp).auth.signOut(); } catch {}
   location.reload();
 }
 window.signOut = signOut;
+
+/* ------------------------------------------------------------- admin: approve or deny requests */
+async function viewAdmin() {
+  if (!me.admin) { $('#view').innerHTML = '<p class="muted pad">Only the administrator can open this page.</p>'; return; }
+  $('#view').innerHTML = skeleton('Loading requests…');
+  try {
+    const { auth, fs } = await fb();
+    // Firebase restores a saved sign-in asynchronously: wait for its first answer before deciding
+    const user = await new Promise(res => { const un = auth.onAuthStateChanged(u => { un(); res(u); }); });
+    if (!user) {
+      $('#view').innerHTML = `<div class="pad" style="text-align:center"><h2>Administrator</h2><p class="muted">Sign in with ${esc(CFG().adminEmail || 'the admin account')} to manage requests.</p><button class="btn" id="asign" style="padding:12px 20px;font-weight:600">Sign in with Google</button><div id="amsg"></div></div>`;
+      $('#asign').onclick = async () => { try { await googleSignIn(); } catch (e) { $('#amsg').innerHTML = note(esc(e.message)); } };
+      const un = auth.onAuthStateChanged(u => { if (u) { un(); if (location.hash === '#/admin') viewAdmin(); } });
+      return;
+    }
+    const snap = await fs.collection('users').get();
+    const rows = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(r => String(r.email).toLowerCase() !== String(CFG().adminEmail || '').toLowerCase()).sort((x, y) => (y.requestedAt?.seconds || 0) - (x.requestedAt?.seconds || 0));
+    const by = s => rows.filter(r => r.status === s);
+    const card = (r, btns) => `<li class="req"><div class="who"><b>${esc(r.name || r.email)}</b><small>${esc(r.email)}</small></div><div class="acts">${btns.map(([act, label, cls]) => `<button class="btn ${cls || ''}" data-act="${act}" data-id="${esc(r.id)}">${label}</button>`).join('')}</div></li>`;
+    const sect = (title, list, btns, empty) => `<h3 class="sec">${title} <span class="muted">(${list.length})</span></h3>${list.length ? `<ul class="list reqs">${list.map(r => card(r, btns)).join('')}</ul>` : `<p class="muted">${empty}</p>`}`;
+    $('#view').innerHTML = `<div class="bar"><h2 style="margin:.2em 0">Access requests</h2><button class="btn" id="refresh">Refresh</button></div>
+      ${sect('Waiting for approval', by('pending'), [['approved', 'Approve', 'ok'], ['denied', 'Deny', 'no']], 'No one is waiting.')}
+      ${sect('Approved', by('approved'), [['denied', 'Remove access', 'no']], 'No approved users yet. You always have access.')}
+      ${sect('Denied', by('denied'), [['approved', 'Approve', 'ok']], 'None.')}`;
+    $('#refresh').onclick = viewAdmin;
+    $('#view').onclick = async e => {
+      const b = e.target.closest('button[data-act]'); if (!b) return;
+      b.disabled = true; b.textContent = '…';
+      try { await fs.collection('users').doc(b.dataset.id).update({ status: b.dataset.act, decidedAt: firebase.firestore.FieldValue.serverTimestamp(), decidedBy: user.email }); viewAdmin(); }
+      catch (err) { b.disabled = false; b.textContent = 'Failed'; }
+    };
+  } catch (e) { $('#view').innerHTML = note(esc(e.message || 'Could not load requests.')); }
+}
+async function loadMe() {
+  try { const j = await (await fetch('/api/me', { cache: 'no-store' })).json(); me = { email: j.email || null, admin: !!j.admin }; } catch {}
+  if (me.admin && !$('#tabs a[data-tab=admin]')) $('#tabs').insertAdjacentHTML('beforeend', '<a href="#/admin" data-tab="admin">Admin</a>');
+}
 
 (async () => {
   renderShell();
@@ -378,6 +449,7 @@ window.signOut = signOut;
     const SQL = await initSqlJs({ locateFile: f => 'vendor/' + f });
     db = new SQL.Database(new Uint8Array(await resp.arrayBuffer()));
     document.body.dataset.ready = '1'; $('#view').removeAttribute('aria-busy');
+    await loadMe();
     route();
   } catch (e) {
     $('#view').innerHTML = `<p class="warn">Could not load the hymnal: ${esc(e.message)}. If you opened this file directly, serve the folder with a web server (e.g. <code>python3 -m http.server</code>).</p>`;

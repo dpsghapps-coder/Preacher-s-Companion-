@@ -1,0 +1,22 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isAdmin() {
+      return signedIn() && request.auth.token.email == 'sjprempeh@gmail.com' && request.auth.token.email_verified == true;
+    }
+
+    // One document per person: users/{uid} = { email, name, status, requestedAt, decidedAt, decidedBy }
+    match /users/{uid} {
+      allow get: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow list: if isAdmin();
+      // a person may create only their own request, and only as 'pending'
+      allow create: if signedIn() && request.auth.uid == uid
+                    && request.resource.data.status == 'pending'
+                    && request.resource.data.email == request.auth.token.email
+                    && request.resource.data.keys().hasOnly(['email', 'name', 'status', 'requestedAt']);
+      // only the admin can approve, deny or remove
+      allow update, delete: if isAdmin();
+    }
+  }
+}
