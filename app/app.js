@@ -207,7 +207,7 @@ document.addEventListener('keydown', e => {
 
 
 /* ------------------------------------------------------------- Library: The Shepherd's Staff */
-let sdb = null, sdivs = [], spages = null, staffQuery = '';
+let sdb = null, sdivs = [], spages = null, staffQuery = '', ssec = { II: {}, III: {} };
 const norm1 = ch => /[a-z0-9]/.test(ch) ? ch : ({ 'à': 'a', 'á': 'a', 'â': 'a', 'ä': 'a', 'é': 'e', 'è': 'e', 'ê': 'e', 'ï': 'i', 'í': 'i', 'ó': 'o', 'ö': 'o', 'ô': 'o', 'ú': 'u', 'ü': 'u', 'ñ': 'n', 'ɔ': 'o', 'ɛ': 'e' }[ch] || ' ');
 const foldKeep = t => { let o = ''; for (const ch of t.toLowerCase()) o += norm1(ch); return o; };   // same length as t (UTF-16 safe enough for English)
 const escRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -233,7 +233,9 @@ async function loadStaff() {
   sdb = new SQL.Database(new Uint8Array(await resp.arrayBuffer()));
   const sq = (sql, p = []) => { const st = sdb.prepare(sql); st.bind(p); const o = []; while (st.step()) o.push(st.getAsObject()); st.free(); return o; };
   sdivs = sq('SELECT * FROM staff_division ORDER BY start_page');
-  spages = sq('SELECT page, division_id d, fmt, text FROM staff_page ORDER BY page').map(r => ({ ...r, f: ' ' + foldKeep(r.text).replace(/\s+/g, ' ') + ' ' }));
+  spages = sq('SELECT page, division_id d, label, fmt, text FROM staff_page ORDER BY page').map(r => ({ ...r, f: ' ' + foldKeep(r.text).replace(/\s+/g, ' ') + ' ' }));
+  ssec = { II: {}, III: {} };                                // cross-reference targets: part -> 'E4' / 'C10.6' -> { page, title }
+  for (const r of sq('SELECT part, code, sub, title, page FROM staff_section')) ssec[r.part][r.sub ? r.code + '.' + r.sub : r.code] = { page: r.page, title: r.title };
   return true;
 }
 function staffSearch(q) {
@@ -302,11 +304,12 @@ async function viewStaffPage(n, q) {
   const p = spages[n - 1]; if (!p) { $('#view').innerHTML = '<p class="muted pad">No such page.</p>'; return; }
   const d = sdivs.find(x => x.id === p.d);
   const qs = q ? '/' + encodeURIComponent(q) : '';
-  const body = p.text ? (p.fmt === 'l' ? `<div style="white-space:pre-line">${renderText(p.text, q)}</div>` : p.text.split('\n\n').map(t => `<p>${renderText(t, q)}</p>`).join('')) : (n === 1 ? '' : '<p class="muted">(blank page)</p>');
+  const ctx = { part: d && d.title.startsWith('II.') ? 'II' : 'III', div: d && d.title === 'Contents' ? 'contents' : '', listing: (p.text.match(/^\s*[A-G]\s?\d{1,2}(?:\.\d{1,2})?\s*[-–:;]\s+\S/gm) || []).length >= 3 };
+  const body = p.text ? (p.fmt === 'l' ? p.text.split('\n').map(t => `<div style="white-space:pre-line">${renderText(t, q, ctx)}</div>`).join('') : p.text.split('\n\n').map(t => `<p>${renderText(t, q, ctx)}</p>`).join('')) : (n === 1 ? '' : '<p class="muted">(blank page)</p>');
   $('#view').innerHTML = `<article class="hymn staffpage"><div class="bar"><a href="#/staff/p/${Math.max(1, n - 1)}${qs}">‹ ${Math.max(1, n - 1)}</a>
     <span><a href="#/staff" onclick="staffQuery=${esc(JSON.stringify(q))}">☰ Search</a> <button id="smaller">A−</button> <button id="bigger">A+</button></span>
     <a href="#/staff/p/${Math.min(spages.length, n + 1)}${qs}">${Math.min(spages.length, n + 1)} ›</a></div>
-    <div class="meta">${esc(d ? d.title : '')} · page ${n} of ${spages.length}</div>
+    <div class="meta">${esc(d ? d.title : '')} · page ${n} of ${spages.length}${p.label ? ` · book page ${esc(p.label)}` : ''}</div>
     ${n === 1 ? '<figure class="frontcover"><img class="cover" src="shepherds-staff-cover.jpg" width="720" height="1080" alt="The Shepherd’s Staff — book cover"><figcaption class="muted">The Shepherd’s Staff · Ralph Mahoney (ed.), World MAP</figcaption></figure>' : ''}
     <div class="prose" style="font-size:var(--fs);line-height:1.5;margin-top:10px">${body}</div></article>`;
   $('#bigger').onclick = () => { fs = Math.min(40, fs + 2); store.set('fs', fs); renderShell(); };
@@ -384,16 +387,56 @@ function parseTarget(q) {                         // "ref:John/3/16-18"
   const m = /^ref:([^/]+)\/(\d+)(?:\/(.*))?$/.exec(q || ''); if (!m) return null;
   return { book: decodeURIComponent(m[1]), ch: +m[2], vs: parseVerses((m[3] || '').replace(/-/g, '-')) };
 }
-// text -> html: Bible references become links, search words are highlighted
-function renderText(text, q) {
+// "Section C5", "Sections B8, B9, B10", "Section C 10.6"  ->  page of that section (Part II concordance or Part III leaders guide, by where the text is)
+const XSEC_RE = /\b[Ss]ections?\s+([A-G]\s?\d{1,2}(?:\.\d{1,2})?(?:\s*(?:,|and|&|or)\s*(?:[A-G]\s?)?\d{1,2}(?:\.\d{1,2})?)*)/g;
+function sectionTarget(code, sub, part) {
+  const order = part === 'II' ? ['II', 'III'] : ['III', 'II'];
+  for (const p of order) { const t = (sub && ssec[p][code + '.' + sub]) || ssec[p][code]; if (t && t.page) return { ...t, part: p, code }; }
+  return null;
+}
+function* findXrefs(text, part) {
+  XSEC_RE.lastIndex = 0; let m;
+  while ((m = XSEC_RE.exec(text))) {
+    const base = m.index + m[0].length - m[1].length; let letter = '';
+    const tok = /([A-G])?\s?(\d{1,2})(?:\.(\d{1,2}))?/g; let t;
+    while ((t = tok.exec(m[1]))) {
+      if (t[1]) letter = t[1]; if (!letter) continue;
+      const code = letter + t[2], target = sectionTarget(code, t[3] ? +t[3] : null, part);
+      if (target) yield { index: base + t.index, text: t[0], page: target.page, title: `${code}${t[3] ? '.' + t[3] : ''} — ${target.title || ''}`.trim() };
+    }
+  }
+}
+// contents lists: a whole line such as "A2: Training Leaders To Do Nine Things" or "E4. REPENTANCE" links to its section
+function listingTarget(par, ctx) {
+  let m = /^\s*([A-G])\s?(\d{1,2}|[lI])(?:\.(\d{1,2}))?\s*[-–:;]\s+\S/.exec(par);
+  if (m && ctx.listing) return sectionTarget(m[1] + ('lI'.includes(m[2]) ? '1' : m[2]), m[3] ? +m[3] : null, 'III');
+  m = /^\s*([A-IP])\s?(\d{1,2}|[lI])\.\s+\S/.exec(par);
+  if (m && ctx.part === 'II') return sectionTarget((m[1] === 'P' ? 'F' : m[1]) + ('lI'.includes(m[2]) ? '1' : m[2]), null, 'II');
+  if (ctx.div === 'contents') {                                                    // the three parts of the book
+    m = /^\s*(I{1,3})\.\s+(New|Topical|Leaders)/.exec(par);
+    const d = m && sdivs.find(x => x.title.startsWith(m[2] === 'New' ? 'I. New' : m[2] === 'Topical' ? 'II. Topical' : 'A. '));
+    if (d) return { page: d.start_page };
+  }
+  m = /^\s*([A-I]):\s+\S/.exec(par);
+  if (m && ctx.div === 'contents') return sectionTarget(m[1] + '1', null, 'II');
+  return null;
+}
+// text -> html: Bible references and section cross-references become links, search words are highlighted
+function renderText(text, q, ctx = {}) {
   const target = parseTarget(q), hq = target ? '' : q;
+  const items = [...findRefs(text).map(r => ({ ...r, kind: 'bible' })), ...findXrefs(text, ctx.part || 'III').map(r => ({ ...r, kind: 'sec' }))].sort((x, y) => x.index - y.index);
   let out = '', pos = 0;
-  for (const r of findRefs(text)) {
+  for (const r of items) {
+    if (r.index < pos) continue;
     out += hl(text.slice(pos, r.index), hq);
-    out += `<a class="ref${target && refOverlap(r, target) ? ' hit' : ''}" href="${refHref(r)}">${hl(r.text, hq)}</a>`;
+    out += r.kind === 'sec'
+      ? `<a class="ref sec" href="#/staff/p/${r.page}" title="${esc(r.title)}">${hl(r.text, hq)}</a>`
+      : `<a class="ref${target && refOverlap(r, target) ? ' hit' : ''}" href="${refHref(r)}">${hl(r.text, hq)}</a>`;
     pos = r.index + r.text.length;
   }
-  return out + hl(text.slice(pos), hq);
+  out += hl(text.slice(pos), hq);
+  const lt = listingTarget(text, ctx);                       // a contents line: make the whole line one link
+  return lt ? `<a class="ref sec" href="#/staff/p/${lt.page}">${out}</a>` : out;
 }
 let refIndex = null;                              // page -> [refs]  (built once, on first use)
 function buildRefIndex() {

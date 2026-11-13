@@ -62,7 +62,9 @@ cd app && python3 -m http.server 8000   # then open http://localhost:8000
 Host the `app/` folder on any static host (Cloudflare Pages, Netlify, GitHub Pages). Bump `V` in `app/sw.js` when the database changes.
 
 ## Library: The Shepherd's Staff
-`The_Shepherds_Staff.pdf` (Ralph Mahoney, World MAP, 1993/1999) is converted page by page into `app/staff.db` by
-`python3 tools/build_staff_db.py The_Shepherds_Staff.pdf app/staff.db`. The app's **Library** tab searches the whole book
+`The_Shepherds_Staff_Corrected.pdf` (Ralph Mahoney, World MAP, 1993/1999, corrected edition, 1302 pages) is converted page by page into `app/staff.db` by
+`python3 tools/build_staff_db.py The_Shepherds_Staff_Corrected.pdf app/staff.db` (also builds the section index used for cross-reference links and the printed page numbers). The app's **Library** tab searches the whole book
 (all words, "exact phrase", or a Bible reference like `Ps 37:5`), highlights matches, and opens any page; the book's 11 main
 divisions come from the PDF's own bookmarks. It downloads once and then works offline.
+
+Bible references and "Section C5"-style cross-references in the book are links; contents lists link to their sections.

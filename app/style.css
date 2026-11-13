@@ -70,3 +70,5 @@ mark{background:#ffe27a;color:#1d2330;border-radius:3px;padding:0 2px}
 a.ref{color:var(--accent);text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;white-space:nowrap}
 a.ref.hit{background:#ffe27a;color:#1d2330;border-radius:3px;padding:0 2px;text-decoration:none}
 a.chip{text-decoration:none}
+a.ref.sec{text-decoration-style:solid;white-space:normal}
+a.ref.sec[href]:has(.sec){text-decoration:none}
