@@ -140,7 +140,7 @@ function viewSaved() {
 /* ------------------------------------------------------------- hymn */
 function refsText(n) {
   const rs = q(`SELECT raw, book, chapter, verse_start a, verse_end b FROM scripture_ref WHERE hymn_number=? ORDER BY id`, [n]);
-  return rs.map(r => r.book ? `${r.book} ${r.chapter}${r.a ? ':' + r.a + (r.b && r.b !== r.a ? '–' + r.b : '') : ''}` : r.raw);
+  return rs.map(r => r.book ? { label: `${r.book} ${r.chapter}${r.a ? ':' + r.a + (r.b && r.b !== r.a ? '–' + r.b : '') : ''}`, href: `#/ref/${encodeURIComponent(r.book)}/${r.chapter}${r.a ? '/' + r.a + (r.b && r.b !== r.a ? '-' + r.b : '') : ''}` } : { label: r.raw });
 }
 function viewHymn(n) {
   if (!(n >= 1 && n <= 850)) { $('#view').innerHTML = '<p class="muted pad">No such hymn.</p>'; return; }
@@ -184,7 +184,7 @@ function viewHymn(n) {
       <button id="wake" title="Keep the screen on">${wake ? '☀ on' : '☀'}</button>${lang === 'both' ? `<button id="sbsbtn" title="Side by side / stacked">${sbs ? '▤ Stacked' : '◫ Side by side'}</button>` : ''}</span>
       <a href="#/hymn-next">${Math.min(850, n + 1)} ›</a></div>
     <h2>Hymn ${n}</h2>
-    <div class="meta">${refs.map(r => `<span class="chip">${esc(r)}</span>`).join('')}</div>
+    <div class="meta">${refs.map(r => r.href ? `<a class="chip" href="${r.href}">${esc(r.label)}</a>` : `<span class="chip">${esc(r.label)}</span>`).join('')}</div>
     <div class="meta">${[meta.theme, meta.subtheme].filter(Boolean).map(esc).join(' › ')}</div>
     <div class="cols ${lang === 'both' && !sbs ? 'both' : ''}" style="margin-top:14px">${cols}</div></article>`;
   $('#fav').onclick = () => { favs = isFav ? favs.filter(x => x !== n) : [...favs, n]; store.set('favs', favs); viewHymn(n); };
@@ -302,7 +302,7 @@ async function viewStaffPage(n, q) {
   const p = spages[n - 1]; if (!p) { $('#view').innerHTML = '<p class="muted pad">No such page.</p>'; return; }
   const d = sdivs.find(x => x.id === p.d);
   const qs = q ? '/' + encodeURIComponent(q) : '';
-  const body = p.text ? (p.fmt === 'l' ? `<div style="white-space:pre-line">${hl(p.text, q)}</div>` : p.text.split('\n\n').map(t => `<p>${hl(t, q)}</p>`).join('')) : (n === 1 ? '' : '<p class="muted">(blank page)</p>');
+  const body = p.text ? (p.fmt === 'l' ? `<div style="white-space:pre-line">${renderText(p.text, q)}</div>` : p.text.split('\n\n').map(t => `<p>${renderText(t, q)}</p>`).join('')) : (n === 1 ? '' : '<p class="muted">(blank page)</p>');
   $('#view').innerHTML = `<article class="hymn staffpage"><div class="bar"><a href="#/staff/p/${Math.max(1, n - 1)}${qs}">‹ ${Math.max(1, n - 1)}</a>
     <span><a href="#/staff" onclick="staffQuery=${esc(JSON.stringify(q))}">☰ Search</a> <button id="smaller">A−</button> <button id="bigger">A+</button></span>
     <a href="#/staff/p/${Math.min(spages.length, n + 1)}${qs}">${Math.min(spages.length, n + 1)} ›</a></div>
@@ -311,13 +311,117 @@ async function viewStaffPage(n, q) {
     <div class="prose" style="font-size:var(--fs);line-height:1.5;margin-top:10px">${body}</div></article>`;
   $('#bigger').onclick = () => { fs = Math.min(40, fs + 2); store.set('fs', fs); renderShell(); };
   $('#smaller').onclick = () => { fs = Math.max(14, fs - 2); store.set('fs', fs); renderShell(); };
-  const first = $('.prose mark'); if (first) first.scrollIntoView({ block: 'center' }); else window.scrollTo(0, 0);
+  const first = $('.prose mark, .prose a.hit'); if (first) first.scrollIntoView({ block: 'center' }); else window.scrollTo(0, 0);
 }
 document.addEventListener('keydown', e => {
   const m = location.hash.match(/^#\/staff\/p\/(\d+)(\/.*)?$/); if (!m || e.target.matches('input')) return;
   if (e.key === 'ArrowLeft') location.hash = '#/staff/p/' + Math.max(1, +m[1] - 1) + (m[2] || '');
   if (e.key === 'ArrowRight') location.hash = '#/staff/p/' + (+m[1] + 1) + (m[2] || '');
 });
+
+
+/* ------------------------------------------------------------- Bible references: parse, link, look up */
+const BOOKS = [
+  ['Genesis', 'ge gen genesis'], ['Exodus', 'ex exo exod exodus'], ['Leviticus', 'le lev leviticus'], ['Numbers', 'nu num numbers'],
+  ['Deuteronomy', 'de deu deut deuteronomy'], ['Joshua', 'jos josh joshua'], ['Judges', 'jdg judg judges'], ['Ruth', 'ru rut ruth'],
+  ['1 Samuel', '1sa 1sam 1samuel'], ['2 Samuel', '2sa 2sam 2samuel'], ['1 Kings', '1ki 1kgs 1kings'], ['2 Kings', '2ki 2kgs 2kings'],
+  ['1 Chronicles', '1ch 1chr 1chron 1chronicles'], ['2 Chronicles', '2ch 2chr 2chron 2chronicles'], ['Ezra', 'ezr ezra'],
+  ['Nehemiah', 'ne neh nehemiah'], ['Esther', 'es est esther'], ['Job', 'job'], ['Psalms', 'ps psa psalm psalms'],
+  ['Proverbs', 'pr pro prov proverbs'], ['Ecclesiastes', 'ec ecc eccl ecclesiastes'], ['Song of Solomon', 'ss song'],
+  ['Isaiah', 'isa isaiah'], ['Jeremiah', 'jer jeremiah'], ['Lamentations', 'la lam lamentations'], ['Ezekiel', 'eze ezek ezekiel'],
+  ['Daniel', 'da dan daniel'], ['Hosea', 'ho hos hosea'], ['Joel', 'joe joel'], ['Amos', 'am amos'], ['Obadiah', 'ob oba obadiah'],
+  ['Jonah', 'jon jonah'], ['Micah', 'mic micah'], ['Nahum', 'nah nahum'], ['Habakkuk', 'hab habakkuk'], ['Zephaniah', 'zep zeph zephaniah'],
+  ['Haggai', 'hag haggai'], ['Zechariah', 'zec zech zechariah'], ['Malachi', 'mal malachi'],
+  ['Matthew', 'mt mat matt matthew'], ['Mark', 'mk mar mark'], ['Luke', 'lu luk luke'], ['John', 'joh jn john'], ['Acts', 'ac act acts'],
+  ['Romans', 'ro rom romans'], ['1 Corinthians', '1co 1cor 1corinthians'], ['2 Corinthians', '2co 2cor 2corinthians'], ['Galatians', 'ga gal galatians'],
+  ['Ephesians', 'eph ephesians'], ['Philippians', 'php phil philippians'], ['Colossians', 'col colossians'],
+  ['1 Thessalonians', '1th 1ths 1thes 1thess 1thessalonians'], ['2 Thessalonians', '2th 2ths 2thes 2thess 2thessalonians'],
+  ['1 Timothy', '1ti 1tim 1timothy'], ['2 Timothy', '2ti 2tim 2timothy'], ['Titus', 'tit titus'], ['Philemon', 'phm philem philemon'],
+  ['Hebrews', 'heb hebrews'], ['James', 'jas jam james'], ['1 Peter', '1pe 1pet 1peter'], ['2 Peter', '2pe 2pet 2peter'],
+  ['1 John', '1jo 1jn 1joh 1john'], ['2 John', '2jo 2jn 2joh 2john'], ['3 John', '3jo 3jn 3joh 3john'], ['Jude', 'jude'], ['Revelation', 're rev revelation revelations']
+];
+const ALIAS = {}; BOOKS.forEach(([name, al]) => al.split(' ').forEach(x => { ALIAS[x] = name; }));
+const FULL = new Set(['genesis', 'exodus', 'leviticus', 'numbers', 'deuteronomy', 'joshua', 'judges', 'psalm', 'psalms', 'proverbs', 'ecclesiastes', 'isaiah', 'jeremiah', 'ezekiel', 'daniel', 'matthew', 'mark', 'luke', 'john', 'acts', 'romans', 'galatians', 'ephesians', 'philippians', 'colossians', 'hebrews', 'james', 'revelation', 'corinthians', 'thessalonians', 'timothy', 'peter']);
+const bareWords = [...new Set(Object.keys(ALIAS).filter(k => !/^\d/.test(k)).concat(['samuel', 'kings', 'chronicles', 'corinthians', 'thessalonians', 'timothy', 'peter']))].sort((x, y) => y.length - x.length);
+const numWords = ['sa', 'sam', 'samuel', 'ki', 'kgs', 'kings', 'ch', 'chr', 'chron', 'chronicles', 'co', 'cor', 'corinthians', 'th', 'ths', 'thes', 'thess', 'thessalonians', 'ti', 'tim', 'timothy', 'pe', 'pet', 'peter', 'jo', 'jn', 'joh', 'john'].sort((x, y) => y.length - x.length);
+const REF_RE = new RegExp('(?<![A-Za-z0-9])(?:((?:[1-3]\\s?\\.?\\s?|[Il]{1,3}\\s?))(' + numWords.join('|') + ')|(' + bareWords.join('|') + '))(?![A-Za-z])\\.?\\s?(\\d{1,3})(?:\\s?[:.]\\s?(\\d{1,3}(?:\\s?[-–]\\s?\\d{1,3})?(?:\\s?,\\s?\\d{1,3}(?:\\s?[-–]\\s?\\d{1,3})?)*))?(?![A-Za-z0-9])', 'gi');
+function canonBook(num, word) {
+  const w = word.toLowerCase();
+  if (num) { const n = { i: 1, ii: 2, iii: 3 }[num.trim().replace(/\./g, '').toLowerCase()] || +num.trim().replace(/\./g, ''); return ALIAS[n + w] || (w === 'samuel' ? n + ' Samuel' : w === 'kings' ? n + ' Kings' : null) || ALIAS[n + w.slice(0, 3)] || null; }
+  return ALIAS[w] || (w === 'samuel' ? null : null);
+}
+function parseVerses(vs) {                       // "104,105" "18-25" "1-3, 11" -> [[a,b],...]
+  if (!vs) return [];
+  return vs.split(',').map(p => { const m = p.trim().match(/^(\d+)\s*[-–]\s*(\d+)$/); return m ? [+m[1], +m[2]] : [+p.trim(), +p.trim()]; }).filter(r => r[0] > 0);
+}
+function* findRefs(text) {
+  REF_RE.lastIndex = 0; let m;
+  while ((m = REF_RE.exec(text))) {
+    const bare = (m[3] || '').toLowerCase();
+    let word = m[2] || m[3], pre = m[1], book;
+    if (pre && /^[Il]+$/.test(pre) && /[a-z]/.test(word[0])) {          // "Isa 40:1" is Isaiah, not "I" + "sa"
+      book = ALIAS[(pre + word).toLowerCase()]; pre = null; word = m[1] + m[2];
+      if (!book) continue;
+    } else {
+      if (!/[A-Z]/.test(word[0]) || (pre && !/^([1-3]|[Il]{1,3})/.test(pre.trim()))) continue;   // "am 5:30" or "i co…" are not references
+      book = canonBook(pre && pre.replace(/l/g, 'I'), word);
+      if (!book) continue;
+    }
+    const hasVerse = m[5] !== undefined;
+    // without a verse, only full book names count ("Psalm 23", "Hebrews 11") so "Ac 20" or "Re 3" in running text are left alone
+    if (!hasVerse && !FULL.has(word.toLowerCase())) continue;
+    yield { index: m.index, text: m[0], book, ch: +m[4], vs: parseVerses(m[5]) };
+  }
+}
+const refHref = r => `#/ref/${encodeURIComponent(r.book)}/${r.ch}${r.vs.length ? '/' + r.vs.map(v => v[0] === v[1] ? v[0] : v[0] + '-' + v[1]).join(',') : ''}`;
+const refLabel = r => `${r.book} ${r.ch}${r.vs.length ? ':' + r.vs.map(v => v[0] === v[1] ? v[0] : v[0] + '–' + v[1]).join(', ') : ''}`;
+function refOverlap(r, target) {                  // does reference r cover target {book,ch,vs}?
+  if (r.book !== target.book || r.ch !== target.ch) return false;
+  if (!target.vs.length || !r.vs.length) return true;
+  return r.vs.some(a => target.vs.some(b => a[0] <= b[1] && b[0] <= a[1]));
+}
+function parseTarget(q) {                         // "ref:John/3/16-18"
+  const m = /^ref:([^/]+)\/(\d+)(?:\/(.*))?$/.exec(q || ''); if (!m) return null;
+  return { book: decodeURIComponent(m[1]), ch: +m[2], vs: parseVerses((m[3] || '').replace(/-/g, '-')) };
+}
+// text -> html: Bible references become links, search words are highlighted
+function renderText(text, q) {
+  const target = parseTarget(q), hq = target ? '' : q;
+  let out = '', pos = 0;
+  for (const r of findRefs(text)) {
+    out += hl(text.slice(pos, r.index), hq);
+    out += `<a class="ref${target && refOverlap(r, target) ? ' hit' : ''}" href="${refHref(r)}">${hl(r.text, hq)}</a>`;
+    pos = r.index + r.text.length;
+  }
+  return out + hl(text.slice(pos), hq);
+}
+let refIndex = null;                              // page -> [refs]  (built once, on first use)
+function buildRefIndex() {
+  if (refIndex) return refIndex;
+  refIndex = new Map();
+  for (const p of spages) { const rs = [...findRefs(p.text)]; if (rs.length) refIndex.set(p.page, rs); }
+  return refIndex;
+}
+async function viewRef(book, ch, vsText) {
+  $('#view').innerHTML = skeleton('Looking up references…');
+  try { if (!await loadStaff()) return; } catch (e) { $('#view').innerHTML = `<p class="warn">${esc(e.message)}</p>`; return; }
+  const target = { book, ch, vs: parseVerses(vsText) };
+  const label = refLabel(target);
+  const vrange = target.vs.length ? target.vs : null;
+  const hy = q(`SELECT DISTINCT hymn_number n FROM scripture_ref WHERE book=? AND chapter=? ${vrange ? 'AND (verse_start IS NULL OR (' + vrange.map(() => 'verse_start<=? AND coalesce(verse_end,verse_start)>=?').join(' OR ') + '))' : ''} ORDER BY n`,
+    vrange ? [book, ch, ...vrange.flatMap(v => [v[1], v[0]])] : [book, ch]).map(r => r.n);
+  const idx = buildRefIndex(); const hits = [];
+  for (const [page, rs] of idx) { const r = rs.find(x => refOverlap(x, target)); if (r) hits.push({ page, r }); }
+  const enc = encodeURIComponent(`ref:${encodeURIComponent(book)}/${ch}${target.vs.length ? '/' + target.vs.map(v => v[0] === v[1] ? v[0] : v[0] + '-' + v[1]).join(',') : ''}`);
+  const bible = `https://www.biblegateway.com/passage/?search=${encodeURIComponent(label.replace('–', '-'))}&version=NKJV`;
+  const snip = h => { const t = spages[h.page - 1].text; const from = Math.max(0, h.r.index - 90), to = Math.min(t.length, h.r.index + h.r.text.length + 90); return (from ? '… ' : '') + esc(t.slice(from, h.r.index)) + '<mark>' + esc(h.r.text) + '</mark>' + esc(t.slice(h.r.index + h.r.text.length, to)).replace(/\s+/g, ' ') + (to < t.length ? ' …' : ''); };
+  $('#view').innerHTML = `<div class="bar"><a href="javascript:history.back()">‹ Back</a><a class="btn" href="${bible}" target="_blank" rel="noopener">Read the passage ↗</a></div>
+    <h2 style="margin:.2em 0">${esc(label)}</h2>
+    <h3 class="sec">Hymns <span class="muted">(${hy.length})</span></h3>${hy.length ? `<ul class="list">${rowsFor(hy)}</ul>` : '<p class="muted">No hymn cites this passage.</p>'}
+    <h3 class="sec">In The Shepherd’s Staff <span class="muted">(${hits.length} page${hits.length === 1 ? '' : 's'})</span></h3>
+    ${hits.length ? `<ul class="list">${hits.slice(0, 80).map(h => `<li><a href="#/staff/p/${h.page}/${enc}"><span class="num">${h.page}</span><span class="first">${snip(h)}</span></a></li>`).join('')}</ul>${hits.length > 80 ? '<p class="hint">Showing the first 80 pages.</p>' : ''}` : '<p class="muted">Not quoted in the book.</p>'}`;
+  window.scrollTo(0, 0);
+}
 
 /* ------------------------------------------------------------- router + boot */
 function route() {
@@ -327,6 +431,8 @@ function route() {
   document.querySelectorAll('#tabs a').forEach(a => a.classList.toggle('on', a.dataset.tab === tab));
   const m = h.match(/^#\/h\/(\d+)/);
   const sp = h.match(/^#\/staff\/p\/(\d+)(?:\/(.*))?$/);
+  const rf = h.match(/^#\/ref\/([^/]+)\/(\d+)(?:\/(.*))?$/);
+  if (rf) { document.querySelectorAll('#tabs a').forEach(x => x.classList.toggle('on', x.dataset.tab === 'staff')); viewRef(decodeURIComponent(rf[1]), +rf[2], decodeURIComponent(rf[3] || '')); return; }
   const sq = h.match(/^#\/staff\/q\/(.*)$/);
   if (sq) { staffQuery = decodeURIComponent(sq[1]); location.replace('#/staff'); return; }
   if (tab === 'staff') { sp ? viewStaffPage(+sp[1], decodeURIComponent(sp[2] || '')) : viewStaff(); return; }
