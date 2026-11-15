@@ -71,3 +71,9 @@ Bible references and "Section C5"-style cross-references in the book are links; 
 
 ## Gospel songs
 `tools/build_gospel.py <gospel_lyrics.sqlite>` turns the blog archive (939 posts) into `tools/gospel_songs.json` — 825 songs (667 English, 158 Akan/Twi) with title, language and a link to the original post; duplicates are merged, and the two non-song posts are skipped. The source file has no lyric text, so only titles and links are kept. `build_db.py` loads them into `gospel_song`; the app's **Gospel** tab searches titles and filters by language.
+
+### Gospel lyrics (public-domain hymns only)
+Full lyrics are stored only for songs listed in `tools/gospel_pd.json` (old hymns whose authors died long ago — Ghana's copyright term is life + 70 years)
+**and** whose text on the blog really is that hymn (`tools/fetch_gospel_pd.py` checks the opening and a second phrase of the real hymn, so modern songs that share a
+title, such as "Holy, Holy, Holy" or "Oh Happy Day", are rejected). Result: `tools/gospel_lyrics.json` → `gospel_song.lyrics`. Every other song stays title + link.
+To add a song, add a rule with its author/death year and opening words; to remove one, delete its rule and re-run both scripts.

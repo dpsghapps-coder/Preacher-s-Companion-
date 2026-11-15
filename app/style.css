@@ -89,3 +89,5 @@ li.gs .ext{color:var(--accent);font-size:1.1rem}
 li.gs .alt{font-size:.8rem;color:var(--accent);padding:4px 8px;text-decoration:none}
 li.grp{padding:6px 4px;font-weight:700;color:var(--accent);background:var(--soft);border-radius:6px;margin-top:10px;border-bottom:0}
 .az{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 4px}.az a{padding:3px 8px;border-radius:6px;background:var(--soft);text-decoration:none;color:var(--accent);font-weight:600;font-size:.85rem}
+.badge{font-size:.75rem;font-weight:700;color:var(--accent);background:var(--soft);border-radius:99px;padding:3px 10px}
+.stz{white-space:pre-line;margin:0 0 1.1em}.stz .lab{display:block;font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin-bottom:2px}

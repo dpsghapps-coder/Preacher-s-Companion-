@@ -190,7 +190,8 @@ CREATE TABLE scripture_ref (        -- language independent: refs are the same f
 );
 CREATE TABLE gospel_song (       -- gospel song titles with a link to the original post (no lyrics are stored)
     id INTEGER PRIMARY KEY, title TEXT NOT NULL, language TEXT NOT NULL CHECK (language IN ('en','ak')),
-    year INTEGER, url TEXT NOT NULL, also_urls TEXT, norm TEXT NOT NULL, rights_status TEXT
+    year INTEGER, url TEXT NOT NULL, also_urls TEXT, norm TEXT NOT NULL, rights_status TEXT,
+    lyrics TEXT, lyrics_basis TEXT      -- lyrics only for verified public-domain songs (tools/gospel_pd.json); NULL = link out
 );
 CREATE TABLE document (          -- standalone texts (creeds, liturgy, ...), one row per document
     slug TEXT PRIMARY KEY, title TEXT NOT NULL, source TEXT, seq INTEGER NOT NULL
@@ -248,9 +249,12 @@ for n in range(1, 851):
                        (n, raw, book, ch, a, b))
 def _fold(t):
     return re.sub(r'\s+', ' ', re.sub(r'[^a-z0-9]+', ' ', t.lower().replace('ɔ', 'o').replace('ɛ', 'e').replace('’', '').replace("'", ''))).strip()
+_lyr = json.load(open('tools/gospel_lyrics.json'))
 for g in json.load(open('tools/gospel_songs.json')):
-    db.execute('INSERT INTO gospel_song(title,language,year,url,also_urls,norm,rights_status) VALUES (?,?,?,?,?,?,?)',
-               (g['title'], g['language'], g['year'], g['url'], json.dumps(g['also']) if g['also'] else None, _fold(g['title']), g.get('rights')))
+    L = _lyr.get(str(g['source_id']))
+    db.execute('INSERT INTO gospel_song(title,language,year,url,also_urls,norm,rights_status,lyrics,lyrics_basis) VALUES (?,?,?,?,?,?,?,?,?)',
+               (g['title'], g['language'], g['year'], g['url'], json.dumps(g['also']) if g['also'] else None, _fold(g['title']), g.get('rights'),
+                L['lyrics'] if L else None, L['basis'] if L else None))
 for di, d in enumerate(json.load(open('tools/documents.json')), 1):
     db.execute('INSERT INTO document VALUES (?,?,?,?)', (d['slug'], d['title'], d.get('source'), di))
     for vi, v in enumerate(d['versions'], 1):

@@ -1,0 +1,308 @@
+[
+ {
+  "match": "^Blessed Assurance$",
+  "opening": [
+   "blessed assurance jesus is mine",
+   "jesus is mine oh what a foretaste"
+  ],
+  "basis": "Words: Fanny J. Crosby (d. 1915); music: Phoebe P. Knapp (d. 1908)",
+  "repair": {
+   "startswith": ", Jesus is mine!",
+   "prefix": "Blessed assurance"
+  },
+  "also": [
+   "perfect submission"
+  ]
+ },
+ {
+  "match": "^Holy, Holy, Holy$",
+  "opening": "holy holy holy lord god almighty",
+  "basis": "Words: Reginald Heber (d. 1826)"
+ },
+ {
+  "match": "^What A Friend We Have In Jesus$",
+  "opening": "what a friend we have in jesus",
+  "basis": "Words: Joseph M. Scriven (d. 1886)",
+  "also": [
+   "take it to the lord in prayer"
+  ]
+ },
+ {
+  "match": "^I Need Thee Every Hour$",
+  "opening": "i need thee every hour",
+  "basis": "Words: Annie S. Hawks (d. 1918)",
+  "also": [
+   "i need thee o i need thee"
+  ]
+ },
+ {
+  "match": "^Trust And Obey$",
+  "opening": "when we walk with the lord",
+  "basis": "Words: John H. Sammis (d. 1919)",
+  "also": [
+   "trust and obey"
+  ]
+ },
+ {
+  "match": "^Jesus Lover Of My Soul$",
+  "opening": "jesus lover of my soul",
+  "basis": "Words: Charles Wesley (d. 1788)",
+  "also": [
+   "bosom fly"
+  ]
+ },
+ {
+  "match": "^O For A Thousand Tongues$",
+  "opening": "o for a thousand tongues",
+  "basis": "Words: Charles Wesley (d. 1788)",
+  "also": [
+   "my gracious master"
+  ]
+ },
+ {
+  "match": "^Dear Lord And Father Of Mankind$",
+  "opening": "dear lord and father of mankind",
+  "basis": "Words: John Greenleaf Whittier (d. 1892)",
+  "also": [
+   "still small voice of calm"
+  ]
+ },
+ {
+  "match": "^Praise To The Lord The Almighty$",
+  "opening": "praise to the lord the almighty",
+  "basis": "Words: Joachim Neander (d. 1680), tr. Catherine Winkworth (d. 1878)",
+  "also": [
+   "ponder anew"
+  ]
+ },
+ {
+  "match": "^And Can It Be$",
+  "opening": "and can it be that i should gain",
+  "basis": "Words: Charles Wesley (d. 1788)",
+  "also": [
+   "my chains fell off"
+  ]
+ },
+ {
+  "match": "^Christ The Lord Is Risen Today$",
+  "opening": [
+   "christ the lord is risen today",
+   "christ the lord is ris n today"
+  ],
+  "basis": "Words: Charles Wesley (d. 1788)",
+  "also": [
+   "where o death is now thy sting"
+  ]
+ },
+ {
+  "match": "^Come Thou Long Expected Jesus$",
+  "opening": "come thou long expected jesus",
+  "basis": "Words: Charles Wesley (d. 1788)",
+  "also": [
+   "set thy people free"
+  ]
+ },
+ {
+  "match": "^Count Your Blessings$",
+  "opening": "when upon life s billows",
+  "basis": "Words: Johnson Oatman Jr. (d. 1922)",
+  "also": [
+   "count your many blessings"
+  ]
+ },
+ {
+  "match": "^Guide Me O Great Jehovah$",
+  "opening": [
+   "guide me o thou great jehovah",
+   "guide me oh thou great jehovah"
+  ],
+  "basis": "Words: William Williams (d. 1791), tr. Peter Williams (d. 1796)",
+  "also": [
+   "bread of heaven"
+  ]
+ },
+ {
+  "match": "^(I Come To The Garden|In The Garden)$",
+  "opening": "i come to the garden alone",
+  "basis": "Words: C. Austin Miles (d. 1946)"
+ },
+ {
+  "match": "^I Surrender All$",
+  "opening": "all to jesus i surrender",
+  "basis": "Words: Judson W. Van DeVenter (d. 1939)"
+ },
+ {
+  "match": "^Leaning On The Everalasting Arms",
+  "opening": "what a fellowship what a joy divine",
+  "basis": "Words: Elisha A. Hoffman (d. 1929)",
+  "also": [
+   "leaning on the everlasting arms"
+  ]
+ },
+ {
+  "match": "^Lift Every Voice And Sing$",
+  "opening": "lift every voice and sing",
+  "basis": "Words: James Weldon Johnson (d. 1938)",
+  "also": [
+   "sing a song full of the faith"
+  ]
+ },
+ {
+  "match": "^Love Lifted Me$",
+  "opening": "i was sinking deep in sin",
+  "basis": "Words: James Rowe (d. 1933)",
+  "also": [
+   "love lifted me"
+  ]
+ },
+ {
+  "match": "^Nearer To Thee$",
+  "opening": "nearer my god to thee",
+  "basis": "Words: Sarah F. Adams (d. 1848)"
+ },
+ {
+  "match": "^Nothing But The Blood$",
+  "opening": "what can wash away my sin",
+  "basis": "Words: Robert Lowry (d. 1899)",
+  "also": [
+   "nothing but the blood"
+  ]
+ },
+ {
+  "match": "^O Sacred Head Now Wounded( 2)?$",
+  "opening": "o sacred head now wounded",
+  "basis": "Words: Paul Gerhardt (d. 1676), tr. James W. Alexander (d. 1859)",
+  "also": [
+   "sacred head"
+  ]
+ },
+ {
+  "match": "^Oh, Come, All Ye Faithful$",
+  "opening": [
+   "o come all ye faithful",
+   "oh come all ye faithful"
+  ],
+  "basis": "Words: John Francis Wade (d. 1786), tr. Frederick Oakeley (d. 1880)",
+  "also": [
+   "born the king of angels"
+  ]
+ },
+ {
+  "match": "^Oh How I Love Jesus$",
+  "opening": "there is a name i love to hear",
+  "basis": "Words: Frederick Whitfield (d. 1904)",
+  "also": [
+   "oh how i love jesus"
+  ]
+ },
+ {
+  "match": "^Immortal, Invisible$",
+  "opening": "immortal invisible god only wise",
+  "basis": "Words: Walter C. Smith (d. 1908)",
+  "also": [
+   "unresting unhasting"
+  ]
+ },
+ {
+  "match": "^Stand Up Stand Up For Jesus$",
+  "opening": "stand up stand up for jesus",
+  "basis": "Words: George Duffield Jr. (d. 1888)",
+  "also": [
+   "soldiers of the cross"
+  ]
+ },
+ {
+  "match": "^Thine Be The Glory$",
+  "opening": "thine be the glory",
+  "basis": "Words: Edmond Budry (d. 1932), tr. R. Birch Hoyle (d. 1939)",
+  "also": [
+   "endless is the victory"
+  ]
+ },
+ {
+  "match": "^There Is Power In The Blood",
+  "opening": "would you be free from the burden of sin",
+  "basis": "Words: Lewis E. Jones (d. 1936)"
+ },
+ {
+  "match": "^Saved By Grace$",
+  "opening": "some day the silver cord will break",
+  "basis": "Words: Fanny J. Crosby (d. 1915)"
+ },
+ {
+  "match": "^While Sheperds Watch$",
+  "opening": "while shepherds watched their flocks by night",
+  "basis": "Words: Nahum Tate (d. 1715)",
+  "also": [
+   "fear not said he"
+  ]
+ },
+ {
+  "match": "^Jesus Shall Reign Where$",
+  "opening": "jesus shall reign where er the sun",
+  "basis": "Words: Isaac Watts (d. 1748)",
+  "also": [
+   "where er the sun"
+  ]
+ },
+ {
+  "match": "^Visit Us With Thy Salvation",
+  "opening": "love divine all loves excelling",
+  "basis": "Words: Charles Wesley (d. 1788)",
+  "also": [
+   "love divine all loves excelling"
+  ]
+ },
+ {
+  "match": "^Up From The Grave He Arose$",
+  "opening": "low in the grave he lay",
+  "basis": "Words: Robert Lowry (d. 1899)",
+  "also": [
+   "up from the grave he arose"
+  ]
+ },
+ {
+  "match": "^Hallelujah Chorus$",
+  "opening": "hallelujah for the lord god omnipotent reigneth",
+  "basis": "Words: Revelation 19:6, 11:15 (scripture); music: G. F. Handel (d. 1759)",
+  "also": [
+   "kingdom of this world"
+  ]
+ },
+ {
+  "match": "^Mylord Delivered Daniel$",
+  "opening": "my lord delivered daniel",
+  "basis": "Traditional spiritual"
+ },
+ {
+  "match": "^Christ Was Born On Christmas Day$",
+  "opening": "christ was born on christmas day",
+  "basis": "Traditional German carol (Wreathe the holly), 19th-century translation"
+ },
+ {
+  "match": "^I Am Trusting Thee$",
+  "opening": "i am trusting thee lord jesus",
+  "basis": "Words: Frances R. Havergal (d. 1879)"
+ },
+ {
+  "match": "^Man Of Sorrows$",
+  "opening": "man of sorrows what a name",
+  "basis": "Words: Philip P. Bliss (d. 1876)",
+  "also": [
+   "hallelujah what a saviour"
+  ]
+ },
+ {
+  "match": "^(O|Oh) Happy Day$",
+  "opening": "o happy day that fixed my choice",
+  "basis": "Words: Philip Doddridge (d. 1751)"
+ },
+ {
+  "match": "^(His Eye Is On The Sparrow|Why Should I Be Discouraged)",
+  "opening": "why should i feel discouraged",
+  "basis": "Words: Civilla D. Martin (d. 1948); music: Charles H. Gabriel (d. 1932)",
+  "also": [
+   "his eye is on the sparrow"
+  ]
+ }
+]
