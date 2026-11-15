@@ -188,6 +188,10 @@ CREATE TABLE scripture_ref (        -- language independent: refs are the same f
     raw TEXT NOT NULL,
     book TEXT, chapter INTEGER, verse_start INTEGER, verse_end INTEGER
 );
+CREATE TABLE gospel_song (       -- gospel song titles with a link to the original post (no lyrics are stored)
+    id INTEGER PRIMARY KEY, title TEXT NOT NULL, language TEXT NOT NULL CHECK (language IN ('en','ak')),
+    year INTEGER, url TEXT NOT NULL, also_urls TEXT, norm TEXT NOT NULL, rights_status TEXT
+);
 CREATE TABLE document (          -- standalone texts (creeds, liturgy, ...), one row per document
     slug TEXT PRIMARY KEY, title TEXT NOT NULL, source TEXT, seq INTEGER NOT NULL
 );
@@ -242,6 +246,11 @@ for n in range(1, 851):
         for raw, book, ch, a, b in parse_refs(clean_header(en[n]['header'])):
             db.execute('INSERT INTO scripture_ref(hymn_number,raw,book,chapter,verse_start,verse_end) VALUES (?,?,?,?,?,?)',
                        (n, raw, book, ch, a, b))
+def _fold(t):
+    return re.sub(r'\s+', ' ', re.sub(r'[^a-z0-9]+', ' ', t.lower().replace('ɔ', 'o').replace('ɛ', 'e').replace('’', '').replace("'", ''))).strip()
+for g in json.load(open('tools/gospel_songs.json')):
+    db.execute('INSERT INTO gospel_song(title,language,year,url,also_urls,norm,rights_status) VALUES (?,?,?,?,?,?,?)',
+               (g['title'], g['language'], g['year'], g['url'], json.dumps(g['also']) if g['also'] else None, _fold(g['title']), g.get('rights')))
 for di, d in enumerate(json.load(open('tools/documents.json')), 1):
     db.execute('INSERT INTO document VALUES (?,?,?,?)', (d['slug'], d['title'], d.get('source'), di))
     for vi, v in enumerate(d['versions'], 1):

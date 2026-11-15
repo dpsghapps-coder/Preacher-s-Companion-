@@ -80,3 +80,12 @@ a.ref.sec[href]:has(.sec){text-decoration:none}
 .docline{font-size:var(--fs);line-height:1.5;margin:0 0 .55em}
 .docgrid{display:grid;gap:14px}.docgrid .docline{font-size:calc(var(--fs) * .85)}
 @media(min-width:700px){.docgrid .docline{font-size:var(--fs)}}
+
+nav#tabs a{padding:10px 2px;font-size:.92rem}
+.chipbtn .cnt{opacity:.7;font-size:.8rem;margin-left:3px}
+li.gs{display:flex;align-items:center;border-bottom:1px solid var(--line);flex-wrap:wrap}
+li.gs>a:first-child{flex:1;display:flex;align-items:center;gap:10px;padding:11px 4px;text-decoration:none;color:inherit;border-bottom:0}
+li.gs .ext{color:var(--accent);font-size:1.1rem}
+li.gs .alt{font-size:.8rem;color:var(--accent);padding:4px 8px;text-decoration:none}
+li.grp{padding:6px 4px;font-weight:700;color:var(--accent);background:var(--soft);border-radius:6px;margin-top:10px;border-bottom:0}
+.az{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 4px}.az a{padding:3px 8px;border-radius:6px;background:var(--soft);text-decoration:none;color:var(--accent);font-weight:600;font-size:.85rem}

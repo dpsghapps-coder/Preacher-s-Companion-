@@ -97,8 +97,10 @@ function viewSearch() {
       res.innerHTML = rec.length ? `<div class="hint">Recently opened</div><ul class="list">${rowsFor(rec)}</ul>` : '';
       return;
     }
+    const gs = /^\d{1,3}$/.test(inp.value.trim()) ? [] : gospelSearch(inp.value, 'all');
+    const gsp = gs.length ? `<p class="hint"><a href="#/gospel" onclick="gQuery=${esc(JSON.stringify(inp.value.trim()))};gLang='all'">${gs.length} gospel song title${gs.length === 1 ? '' : 's'} match “${esc(inp.value.trim())}” →</a></p>` : '';
     const book = /^\d{1,3}$/.test(inp.value.trim()) ? '' : `<p class="hint"><a href="#/staff/q/${encodeURIComponent(inp.value.trim())}">Search “${esc(inp.value.trim())}” in The Shepherd’s Staff →</a></p>`;
-    res.innerHTML = (r.nums.length ? `<div class="hint">${esc(r.note)} · ${r.nums.length}${r.nums.length === 120 ? '+' : ''} hymn(s)</div><ul class="list">${rowsFor(r.nums)}</ul>`
+    res.innerHTML = gsp + (r.nums.length ? `<div class="hint">${esc(r.note)} · ${r.nums.length}${r.nums.length === 120 ? '+' : ''} hymn(s)</div><ul class="list">${rowsFor(r.nums)}</ul>`
       : `<p class="muted">${esc(r.note || 'No hymns found.')}</p>`) + book;
   };
   let t; inp.addEventListener('input', () => { clearTimeout(t); t = setTimeout(run, 150); });
@@ -506,11 +508,59 @@ function viewDoc(slug) {
   window.scrollTo(0, 0);
 }
 
+
+/* ------------------------------------------------------------- Gospel songs: search + language filter (titles; lyrics are on the source site) */
+const GLANG = { en: 'English', ak: 'Akan (Twi)' };
+let gLang = store.get('glang', 'all'), gQuery = '';
+let gSongs = null;
+function loadGospel() {
+  return gSongs ||= q('SELECT id, title, language, year, url, also_urls, norm FROM gospel_song ORDER BY norm, language');
+}
+function gospelSearch(text, langFilter) {
+  const words = foldKeep(text.replace(/ε/g, 'ɛ')).split(/\s+/).filter(Boolean);
+  let list = loadGospel().filter(s => langFilter === 'all' || s.language === langFilter);
+  if (!words.length) return list;
+  const hit = list.filter(s => words.every(w => (' ' + s.norm).includes(' ' + w) || s.norm.includes(w)));
+  const first = words[0];                                  // titles that start with the search come first
+  return hit.sort((x, y) => (y.norm.startsWith(first) - x.norm.startsWith(first)) || (x.norm < y.norm ? -1 : 1));
+}
+function gospelRow(s) {
+  const extra = s.also_urls ? JSON.parse(s.also_urls) : [];
+  return `<li class="gs"><a href="${esc(s.url)}" target="_blank" rel="noopener"><span class="first">${esc(s.title)}<small>${GLANG[s.language]}${s.year ? ' · ' + s.year : ''}${extra.length ? ' · ' + (extra.length + 1) + ' posts' : ''}</small></span><span class="ext" aria-hidden="true">↗</span></a>${extra.map((u, i) => `<a class="alt" href="${esc(u)}" target="_blank" rel="noopener">post ${i + 2}</a>`).join('')}</li>`;
+}
+function viewGospel() {
+  const songs = loadGospel(); const n = { all: songs.length, en: songs.filter(s => s.language === 'en').length, ak: songs.filter(s => s.language === 'ak').length };
+  $('#view').innerHTML = `<h2 style="margin:.2em 0">Gospel songs</h2>
+    <div class="hint">${n.all} songs · tap a title to read the lyrics on the original site</div>
+    <input id="gq" type="search" placeholder="Search song titles (Twi letters ɔ ɛ optional)" autocomplete="off" enterkeyhint="search" value="${esc(gQuery)}">
+    <div class="chips" role="group" aria-label="Language" style="margin-top:10px">${[['all', 'All'], ['en', 'English'], ['ak', 'Akan (Twi)']].map(([k, label]) => `<button class="chipbtn${gLang === k ? ' on' : ''}" data-g="${k}">${label} <span class="cnt">${n[k]}</span></button>`).join('')}</div>
+    <div id="gres"></div>
+    <footer style="margin-top:22px">Only titles and links are kept here. The lyrics belong to their authors and stay on the source blog, which has not verified the rights to them.</footer>`;
+  const inp = $('#gq'), res = $('#gres');
+  const run = () => {
+    gQuery = inp.value; const list = gospelSearch(gQuery, gLang), shown = gQuery.trim() ? list.slice(0, 300) : list;       // browsing shows every song, grouped by letter
+    if (!list.length) { res.innerHTML = '<p class="muted" style="margin-top:14px">No songs match.</p>'; return; }
+    let html = `<div class="hint" style="margin-top:12px">${list.length} song${list.length === 1 ? '' : 's'}${gQuery.trim() && list.length > 300 ? ' · showing the first 300, narrow your search' : ''}</div>`;
+    if (!gQuery.trim()) {                                                       // browsing: group by first letter with a jump strip
+      const letters = [...new Set(shown.map(s => (s.norm[0] || '#').toUpperCase()))];
+      html += `<div class="az">${letters.map(l => `<a href="#" data-l="${l}">${l}</a>`).join('')}</div><ul class="list">`;
+      let cur = '';
+      for (const s of shown) { const l = (s.norm[0] || '#').toUpperCase(); if (l !== cur) { cur = l; html += `<li class="grp" id="g-${l}">${l}</li>`; } html += gospelRow(s); }
+      html += '</ul>';
+    } else html += `<ul class="list">${shown.map(gospelRow).join('')}</ul>`;
+    res.innerHTML = html;
+    res.querySelectorAll('.az a').forEach(a => a.onclick = e => { e.preventDefault(); document.getElementById('g-' + a.dataset.l)?.scrollIntoView({ block: 'start' }); });
+  };
+  document.querySelectorAll('.chipbtn[data-g]').forEach(b => b.onclick = () => { gLang = b.dataset.g; store.set('glang', gLang); document.querySelectorAll('.chipbtn[data-g]').forEach(x => x.classList.toggle('on', x === b)); run(); });
+  let t; inp.addEventListener('input', () => { clearTimeout(t); t = setTimeout(run, 150); });
+  run(); if (!/Mobi|Android/i.test(navigator.userAgent)) inp.focus();
+}
+
 /* ------------------------------------------------------------- router + boot */
 function route() {
   if (!db) return;
   const h = location.hash || '#/';
-  const tab = h.startsWith('#/themes') ? 'themes' : h.startsWith('#/saved') ? 'saved' : h.startsWith('#/staff') ? 'staff' : 'search';
+  const tab = h.startsWith('#/gospel') ? 'gospel' : h.startsWith('#/themes') ? 'themes' : h.startsWith('#/saved') ? 'saved' : h.startsWith('#/staff') ? 'staff' : 'search';
   document.querySelectorAll('#tabs a').forEach(a => a.classList.toggle('on', a.dataset.tab === tab));
   const m = h.match(/^#\/h\/(\d+)/);
   const sp = h.match(/^#\/staff\/p\/(\d+)(?:\/(.*))?$/);
@@ -520,6 +570,7 @@ function route() {
   if (rf) { document.querySelectorAll('#tabs a').forEach(x => x.classList.toggle('on', x.dataset.tab === 'staff')); viewRef(decodeURIComponent(rf[1]), +rf[2], decodeURIComponent(rf[3] || '')); return; }
   const sq = h.match(/^#\/staff\/q\/(.*)$/);
   if (sq) { staffQuery = decodeURIComponent(sq[1]); location.replace('#/staff'); return; }
+  if (tab === 'gospel') { viewGospel(); return; }
   if (tab === 'staff') { sp ? viewStaffPage(+sp[1], decodeURIComponent(sp[2] || '')) : viewStaff(); return; }
   if (m) viewHymn(+m[1]); else if (tab === 'themes') viewThemes(); else if (tab === 'saved') viewSaved(); else viewSearch();
 }
