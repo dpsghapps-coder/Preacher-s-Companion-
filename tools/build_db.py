@@ -188,6 +188,16 @@ CREATE TABLE scripture_ref (        -- language independent: refs are the same f
     raw TEXT NOT NULL,
     book TEXT, chapter INTEGER, verse_start INTEGER, verse_end INTEGER
 );
+CREATE TABLE document (          -- standalone texts (creeds, liturgy, ...), one row per document
+    slug TEXT PRIMARY KEY, title TEXT NOT NULL, source TEXT, seq INTEGER NOT NULL
+);
+CREATE TABLE document_text (     -- one row per language version
+    slug TEXT NOT NULL REFERENCES document(slug), language TEXT NOT NULL, language_name TEXT NOT NULL, heading TEXT,
+    seq INTEGER NOT NULL, PRIMARY KEY (slug, language)
+);
+CREATE TABLE document_line (
+    slug TEXT NOT NULL, language TEXT NOT NULL, seq INTEGER NOT NULL, text TEXT NOT NULL, PRIMARY KEY (slug, language, seq)
+);
 CREATE INDEX idx_stanza_text ON stanza(hymn_text_id, seq);
 CREATE INDEX idx_ref ON scripture_ref(book, chapter);
 CREATE VIEW stanza_text AS
@@ -232,6 +242,11 @@ for n in range(1, 851):
         for raw, book, ch, a, b in parse_refs(clean_header(en[n]['header'])):
             db.execute('INSERT INTO scripture_ref(hymn_number,raw,book,chapter,verse_start,verse_end) VALUES (?,?,?,?,?,?)',
                        (n, raw, book, ch, a, b))
+for di, d in enumerate(json.load(open('tools/documents.json')), 1):
+    db.execute('INSERT INTO document VALUES (?,?,?,?)', (d['slug'], d['title'], d.get('source'), di))
+    for vi, v in enumerate(d['versions'], 1):
+        db.execute('INSERT INTO document_text VALUES (?,?,?,?,?)', (d['slug'], v['language'], v['language_name'], v.get('heading'), vi))
+        db.executemany('INSERT INTO document_line VALUES (?,?,?,?)', [(d['slug'], v['language'], k, t) for k, t in enumerate(v['lines'], 1)])
 db.executescript('''
 CREATE VIRTUAL TABLE stanza_fts USING fts5(body, language UNINDEXED, hymn_number UNINDEXED, verse_number UNINDEXED,
                                            tokenize='unicode61 remove_diacritics 2');

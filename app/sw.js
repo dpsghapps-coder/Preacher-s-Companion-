@@ -1,4 +1,4 @@
-const V='hymnal-v11', DATA='hymnal-data';
+const V='hymnal-v12', DATA='hymnal-data';
 // The database is private: never precached, cached only after a successful signed-in download, and kept across versions.
 const FILES=['./','index.html','app.js','config.js','style.css','manifest.webmanifest','icon.svg','shepherds-staff-cover.jpg','vendor/sql-wasm.js','vendor/sql-wasm.wasm'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(V).then(c=>c.addAll(FILES)).then(()=>self.skipWaiting()))});

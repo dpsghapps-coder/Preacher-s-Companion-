@@ -272,14 +272,20 @@ function hl(text, q) {
   for (const [a, b] of marks) { if (a < pos) continue; out += esc(text.slice(pos, a)) + '<mark>' + esc(text.slice(a, b)) + '</mark>'; pos = b; }
   return out + esc(text.slice(pos));
 }
+function docsList() {
+  const docs = q('SELECT slug, title FROM document ORDER BY seq');
+  if (!docs.length) return '';
+  return `<h3 class="sec" style="margin-top:6px">Documents</h3><ul class="list">${docs.map(d => `<li><a href="#/doc/${esc(d.slug)}"><span class="num">▤</span><span class="first">${esc(d.title)}<small>${q('SELECT language_name n FROM document_text WHERE slug=? ORDER BY seq', [d.slug]).map(x => x.n).join(' · ')}</small></span></a></li>`).join('')}</ul>`;
+}
 async function viewStaff() {
-  $('#view').innerHTML = skeleton('Opening the library…');
+  $('#view').innerHTML = docsList() + skeleton('Opening the book…');
   try { if (!await loadStaff()) return; } catch (e) { $('#view').innerHTML = `<p class="warn">Could not load the library: ${esc(e.message)}</p>`; return; }
   $('#view').innerHTML = `<div class="bookhead"><img class="cover" src="shepherds-staff-cover.jpg" width="720" height="1080" alt="The Shepherd’s Staff — book cover">
     <div><h2 style="margin:.2em 0">The Shepherd’s Staff</h2>
     <div class="hint">Ralph Mahoney (ed.), World MAP · ${spages.length} pages · full-text search</div></div></div>
     <input id="sq" type="search" placeholder="Search the book (use “quotes” for an exact phrase)" autocomplete="off" enterkeyhint="search" value="${esc(staffQuery)}">
     <div id="sres"></div>`;
+  $('#view').insertAdjacentHTML('afterbegin', docsList());
   const inp = $('#sq'), res = $('#sres');
   const run = () => {
     staffQuery = inp.value; const q = inp.value.trim();
@@ -466,6 +472,40 @@ async function viewRef(book, ch, vsText) {
   window.scrollTo(0, 0);
 }
 
+
+/* ------------------------------------------------------------- Documents (creeds, liturgy, …) */
+let docLangs = null;
+function viewDoc(slug) {
+  const d = q('SELECT * FROM document WHERE slug=?', [slug])[0];
+  if (!d) { $('#view').innerHTML = '<p class="muted pad">No such document.</p>'; return; }
+  const vers = q('SELECT language, language_name n, heading FROM document_text WHERE slug=? ORDER BY seq', [slug]);
+  const have = vers.map(v => v.language);
+  let sel = (docLangs || store.get('doclangs', null) || (lang === 'both' ? ['en', 'tw'] : [lang])).filter(l => have.includes(l));
+  if (!sel.length) sel = [have[0]];
+  const lines = l => q('SELECT text FROM document_line WHERE slug=? AND language=? ORDER BY seq', [slug, l]).map(r => r.text);
+  const cols = sel.map(l => { const v = vers.find(x => x.language === l); return { v, lines: lines(l) }; });
+  const grid = cols.length > 1 && sbs;
+  $('#view').innerHTML = `<article class="hymn doc"><div class="bar"><a href="#/staff">‹ Library</a>
+      <span><button id="smaller">A−</button> <button id="bigger">A+</button> <button id="copy">Copy</button>${cols.length > 1 ? `<button id="sbsbtn">${sbs ? '▤ Stacked' : '◫ Side by side'}</button>` : ''}</span></div>
+    <h2 style="margin:.2em 0">${esc(d.title)}</h2>
+    <div class="chips" role="group" aria-label="Languages">${vers.map(v => `<button class="chipbtn${sel.includes(v.language) ? ' on' : ''}" data-l="${esc(v.language)}">${esc(v.n)}</button>`).join('')}</div>
+    <div class="cols ${grid ? 'docgrid' : ''}" style="${grid ? `grid-template-columns:repeat(${cols.length},1fr)` : ''}">${cols.map(c => `<section class="col"><h3>${esc(c.v.n)}</h3><div class="docname">${esc(c.v.heading || '')}</div>${c.lines.map(t => `<p class="docline">${esc(t)}</p>`).join('')}</section>`).join('')}</div>
+    ${d.source ? `<p class="credit" style="margin-top:18px">${esc(d.source)}</p>` : ''}</article>`;
+  document.querySelectorAll('.chipbtn').forEach(b => b.onclick = () => {
+    const l = b.dataset.l; const next = sel.includes(l) ? sel.filter(x => x !== l) : have.filter(x => x === l || sel.includes(x));
+    if (!next.length) return; docLangs = next; store.set('doclangs', next); viewDoc(slug);
+  });
+  $('#bigger').onclick = () => { fs = Math.min(40, fs + 2); store.set('fs', fs); renderShell(); };
+  $('#smaller').onclick = () => { fs = Math.max(14, fs - 2); store.set('fs', fs); renderShell(); };
+  $('#copy').onclick = async () => {
+    const t = cols.map(c => `${c.v.heading || c.v.n}\n${c.lines.join('\n')}`).join('\n\n');
+    try { await navigator.clipboard.writeText(t); $('#copy').textContent = 'Copied ✓'; } catch { $('#copy').textContent = 'Copy failed'; }
+    setTimeout(() => { const b = $('#copy'); if (b) b.textContent = 'Copy'; }, 1500);
+  };
+  if ($('#sbsbtn')) $('#sbsbtn').onclick = () => { sbs = !sbs; store.set('sbs', sbs); viewDoc(slug); };
+  window.scrollTo(0, 0);
+}
+
 /* ------------------------------------------------------------- router + boot */
 function route() {
   if (!db) return;
@@ -474,6 +514,8 @@ function route() {
   document.querySelectorAll('#tabs a').forEach(a => a.classList.toggle('on', a.dataset.tab === tab));
   const m = h.match(/^#\/h\/(\d+)/);
   const sp = h.match(/^#\/staff\/p\/(\d+)(?:\/(.*))?$/);
+  const dm = h.match(/^#\/doc\/([\w-]+)$/);
+  if (dm) { document.querySelectorAll('#tabs a').forEach(x => x.classList.toggle('on', x.dataset.tab === 'staff')); viewDoc(dm[1]); return; }
   const rf = h.match(/^#\/ref\/([^/]+)\/(\d+)(?:\/(.*))?$/);
   if (rf) { document.querySelectorAll('#tabs a').forEach(x => x.classList.toggle('on', x.dataset.tab === 'staff')); viewRef(decodeURIComponent(rf[1]), +rf[2], decodeURIComponent(rf[3] || '')); return; }
   const sq = h.match(/^#\/staff\/q\/(.*)$/);

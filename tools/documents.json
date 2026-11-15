@@ -1,0 +1,79 @@
+[
+ {
+  "slug": "apostles-creed",
+  "title": "The Apostles’ Creed",
+  "source": "Presbyterian Church of Ghana — Salvation Preaching Point, Order of Service (English, Twi, Ga and Ewe versions as printed)",
+  "versions": [
+   {
+    "language": "en",
+    "language_name": "English",
+    "heading": "THE APOSTLE’S CREED",
+    "lines": [
+     "I believe in God the Father Almighty, Maker of heaven and earth;",
+     "And in Jesus Christ His only Son our Lord;",
+     "Who was conceived by the Holy Spirit;",
+     "Born of the Virgin Mary;",
+     "Suffered under Pontius Pilate;",
+     "Was crucified, dead and buried!",
+     "He descended into hell.",
+     "The third day He rose again from the dead;",
+     "He ascended into Heaven, and sitteth on the Right hand of God the Father Almighty;",
+     "From thence He shall come to judge the Living and the dead;",
+     "I believe in the Holy Spirit;",
+     "The Holy Universal Church;",
+     "The Communion of Saints;",
+     "The forgiveness of sins;",
+     "The Resurrection of the body;",
+     "And the life everlasting.",
+     "Amen."
+    ]
+   },
+   {
+    "language": "tw",
+    "language_name": "Twi",
+    "heading": "ASOMAFO GYIDIKASEM",
+    "lines": [
+     "Migye Agya Onyankopɔn a ɔyɛ nneɛma nyinaa so Tumfoɔ.",
+     "Ne ɔsoro ne asase yɛfo no midi.",
+     "Migye ne ba a ɔwoo no koro no, Yesu Kristo a ɔyɛ yɛn Awurade no midi;",
+     "Ɔno na wɔde Honhom Kronkron na enyinsɛn no, na ɔbaabun Maria woo no;",
+     "na ohuu amane Pontio Pilato bere so, na wɔbɔɔ no fam asɛndua ho, na owui, na wosiee no;",
+     "na osian kɔɔ asaman, na ne nnansa so no ɔsɔre fii awufo mu;",
+     "na ɔkɔɔ soro;",
+     "ɛhɔ na ɔte n’Agya Onyankopɔn, Nneɛma nyinaa so tumfoɔ no nifa;",
+     "ɛhɔ na ofi bɛba abebu ateasefo ne awufo ntɛn.",
+     "Migye Honhom Kronkron ne Kristofo Asafo Kronkron a ɛyɛ biako wɔ mmaa nyinaa a Ahotefo wɔ mu ayɔnkofa ne bɔne fakyɛ ne honam sɔre ne daa nkwa, midi.",
+     "Amen."
+    ]
+   },
+   {
+    "language": "ga",
+    "language_name": "Ga",
+    "heading": "BƆFOI LƐ AHEMƆKƐYELI",
+    "lines": [
+     "Miheɔ Nyɔŋmɔ ni ji Tsɛ Ofe lɛ kɛ ŋwɛi shipɔŋ feelɔ lɛ nɔ miyeɔ.",
+     "Kɛ Yesu Kristo ebinnu koome ni ji wɔ- Nuntsɔ lɛ, mɔ ni aŋɔ lɛ hɔ kɛjɛ Mumɔ Krɔŋkrɔŋlɛŋ, ni oblayoo Maria lɛ fɔ lɛ, ni enã amanehunu yɛ Pontio Pilato yinɔ, ni asɛŋ lɛ, egbo ni afu lɛ;",
+     "ekpleke shi kɛtee gbohiiaje;",
+     "gbi ni ji etɛ lɛ ete shi ekoŋŋ kɛjɛ gbohii ateŋ;",
+     "etee ŋwɛi ni eyata shi yɛ Nyɔŋmɔ ni ji eTsɛ Ofe lɛ ninejurɔ nɔ;",
+     "jɛi eeejɛ eba ni ebakojo mɛi ni hiɛ kãmɔ kɛ mɛi ni egboi lɛ.",
+     "Miheɔ Mumɔ krɔŋkrɔŋ lɛ nɔ, kɛ Kristo Asafo Krɔŋkrɔŋ kome ni yɔɔ he fɛɛ he lɛ mɛi Krɔŋkrɔŋ anaanyobɔɔ lɛ, kɛ eshaifaa lɛ, kɛ gbɔmɔtso shitee lɛ kɛ naanɔ wala lɛ miyeɔ.",
+     "Amen."
+    ]
+   },
+   {
+    "language": "ee",
+    "language_name": "Ewe",
+    "heading": "XƆSEMEƲUƲU",
+    "lines": [
+     "Mexɔ Mawu, etɔa ŋusẽ katã tɔ, si wɔ dzi kple anyigba dzi se.",
+     "Mexɔ Yesu Kristo, Mawu ƒe tenuvi ɖeka, si nye mía aƒetɔ dzi se, Ame si ƒe fu wofɔ tso Gbɔgbɔ Kɔkɔe la me, Eye Maria, dzetugbui la dzii, Ame si kpe fu le Pontio Pilato te, Eye wohee ɖe ati ŋu, eye wòku, eye woɖii;",
+     "Ame si yi tsiẽƒe, Eye wòga fɔ tso amekukuwo dome le ŋkeke etɔ̃a gbe, Eye wòyi dziƒo, Eye wònɔ etɔa ŋusẽ katã tɔ ƒe nuɖusi me.",
+     "Afima wòa ɖa tso ava drɔ̃ ʋɔnu na amegbagbewo kple amekukuwo.",
+     "Mexɔ Gbɔgbɔ Kɔkɔe dzi se, Kple Kristo hame kɔkɔea ɖeka, Si nye amekɔkɔewo ƒe ƒomedodo, Nuvɔ̃wo ɖeɖe, Ŋutilãa ƒe tsitretsitsi, Kpakple agbemavɔ̃ dzi se.",
+     "Amen."
+    ]
+   }
+  ]
+ }
+]
