@@ -4,14 +4,21 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Preacher's Companion</title>
-<meta name="theme-color" content="#1f3a5f">
+<meta name="theme-color" content="#f7f2e8">
+<script>try{var d=document.documentElement,s=JSON.parse(localStorage.getItem('style')||'"reverent"'),m=JSON.parse(localStorage.getItem('mode')||'"auto"');d.dataset.style=s;if(m!=='auto')d.dataset.mode=m}catch(e){}</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <header id="top">
-  <a class="brand" href="#/">Preacher's Companion</a>
+  <a class="brand" href="#/"><span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v9M8.5 6.5h7"/><path d="M3.5 15.5c2.6-1.6 5.7-1.6 8.5 0 2.8-1.6 5.9-1.6 8.5 0v4.5c-2.6-1.6-5.7-1.6-8.5 0-2.8-1.6-5.9-1.6-8.5 0z"/></svg></span><span class="name">Preacher's Companion</span></a>
+  <div class="tools">
+    <select class="themesel" id="themesel" aria-label="Theme">
+      <option value="reverent">Reverent</option><option value="warm">Warm</option><option value="crisp">Crisp</option>
+    </select>
+    <button class="iconbtn" id="modebtn" type="button"></button>
+  </div>
   <div class="seg" id="langseg" role="group" aria-label="Language">
     <button data-lang="en">English</button><button data-lang="tw">Twi</button><button data-lang="both">Both</button>
   </div>

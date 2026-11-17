@@ -44,6 +44,30 @@ document.addEventListener('click', e => {
   const b = e.target.closest('#langseg button'); if (b) setLang(b.dataset.lang);
 });
 
+/* ------------------------------------------------------------- theme: Reverent / Warm / Crisp × auto / light / dark */
+const MODES = ['auto', 'light', 'dark'];
+const MODE_ICON = {
+  auto: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg>',
+  light: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
+  dark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>'
+};
+const MODE_LABEL = { auto: 'Appearance: follows your device', light: 'Appearance: light', dark: 'Appearance: dark' };
+function applyTheme() {
+  const d = document.documentElement, style = store.get('style', 'reverent'), mode = store.get('mode', 'auto');
+  d.dataset.style = style;
+  if (mode === 'auto') delete d.dataset.mode; else d.dataset.mode = mode;
+  const sel = $('#themesel'); if (sel) sel.value = style;
+  const mb = $('#modebtn'); if (mb) { mb.innerHTML = MODE_ICON[mode]; mb.title = mb.ariaLabel = MODE_LABEL[mode] + ' (tap to change)'; }
+  const meta = document.querySelector('meta[name=theme-color]');
+  if (meta) meta.content = getComputedStyle(d).getPropertyValue('--meta-color').trim() || meta.content;
+}
+$('#themesel').addEventListener('change', e => { store.set('style', e.target.value); applyTheme(); });
+$('#modebtn').addEventListener('click', () => { const m = store.get('mode', 'auto'); store.set('mode', MODES[(MODES.indexOf(m) + 1) % 3]); applyTheme(); });
+matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', applyTheme);
+// keep the tab bar pinned right under the (sticky, wrapping) header
+new ResizeObserver(([e]) => document.documentElement.style.setProperty('--hdr', e.target.offsetHeight + 'px')).observe($('#top'));
+applyTheme();
+
 function hymnRow(n, first, sub) {
   return `<li><a href="#/h/${n}"><span class="num">${n}</span><span class="first">${esc(first)}${sub ? `<small>${esc(sub)}</small>` : ''}</span></a></li>`;
 }
