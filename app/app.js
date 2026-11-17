@@ -105,7 +105,7 @@ function viewSearch() {
   };
   let t; inp.addEventListener('input', () => { clearTimeout(t); t = setTimeout(run, 150); });
   inp.addEventListener('keydown', e => { if (e.key === 'Enter' && /^\d{1,3}$/.test(inp.value.trim())) location.hash = '#/h/' + +inp.value.trim(); });
-  $('#view').insertAdjacentHTML('beforeend', '<footer><a href="#" onclick="signOut();return false">Sign out</a></footer>');
+  $('#view').insertAdjacentHTML('beforeend', '<footer><a href="#" id="upd" onclick="updateDb();return false">Update database</a><div id="updmsg">' + (Date.now() - store.get('dbUpdated', 0) < 15000 ? 'Database updated ✓' : '') + '</div></footer>');
   run(); if (!/Mobi|Android/i.test(navigator.userAgent)) inp.focus();
 }
 
@@ -228,7 +228,6 @@ function queryWords(q) {
 async function loadStaff() {
   if (sdb) return true;
   const resp = await fetch('staff.db', { credentials: 'same-origin' });
-  if (resp.status === 401) { showLogin(); return false; }
   if (!resp.ok) throw new Error('staff.db ' + resp.status);
   try { const copy = resp.clone(); caches.open('hymnal-data-v15').then(c => c.put('staff.db', copy)).catch(() => {}); } catch {}
   const SQL = await initSqlJs({ locateFile: f => 'vendor/' + f });
@@ -590,46 +589,36 @@ function route() {
 }
 window.addEventListener('hashchange', route);
 
-/* ------------------------------------------------------------- sign-in (Google) */
-function showLogin(msg) {
-  const id = (window.PC_CONFIG || {}).googleClientId;
-  $('#view').innerHTML = `<div class="pad" style="text-align:center"><h2>Sign in</h2>
-    <p class="muted">This hymnal is private. Sign in with an approved Google account.</p>
-    ${id ? '<div id="gbtn" style="display:inline-block;min-height:44px"></div>' : '<p class="warn">Sign-in is not set up yet (missing Google client ID in config.js).</p>'}
-    <p id="loginmsg" class="warn" style="${msg ? '' : 'display:none'}">${esc(msg || '')}</p></div>`;
-  if (!id) return;
-  const init = () => {
-    google.accounts.id.initialize({ client_id: id, callback: async resp => {
-      const note = $('#loginmsg'); note.style.display = 'none';
-      try {
-        const r = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ credential: resp.credential }) });
-        const j = await r.json().catch(() => ({}));
-        if (r.ok) { location.reload(); return; }
-        note.textContent = r.status === 403 ? `${j.email || 'That account'} is not on the approved list. Ask the owner to add it.` : 'Sign-in failed. Please try again.';
-      } catch { note.textContent = 'No connection. Sign-in needs the internet the first time.'; }
-      note.style.display = '';
-    } });
-    google.accounts.id.renderButton($('#gbtn'), { theme: 'outline', size: 'large', text: 'signin_with' });
-  };
-  if (window.google?.accounts?.id) return init();
-  const sc = document.createElement('script'); sc.src = 'https://accounts.google.com/gsi/client'; sc.async = true; sc.onload = init;
-  sc.onerror = () => { $('#loginmsg').textContent = 'Could not reach Google. Check your connection.'; $('#loginmsg').style.display = ''; };
-  document.head.appendChild(sc);
+// Download the latest databases from the server (bypassing the offline copy), then reload.
+async function updateDb() {
+  const btn = $('#upd'), msg = $('#updmsg');
+  if (!btn || btn.dataset.busy) return;
+  btn.dataset.busy = '1'; btn.textContent = 'Updating…'; msg.textContent = '';
+  try {
+    const cache = await caches.open('hymnal-data-v15').catch(() => null);
+    const files = ['hymnal.db'];
+    if (sdb || (cache && await cache.match('staff.db'))) files.push('staff.db');   // only refresh the library if it was downloaded
+    for (const f of files) {
+      const r = await fetch(f, { credentials: 'same-origin', cache: 'reload' });
+      if (!r.ok) throw new Error(f + ' ' + r.status);
+      const buf = await r.arrayBuffer();
+      if (cache) await cache.put(f, new Response(buf, { headers: { 'Content-Type': 'application/octet-stream' } }));
+    }
+    store.set('dbUpdated', Date.now());
+    location.reload();
+  } catch (e) {
+    msg.textContent = navigator.onLine ? 'Update failed (' + e.message + '). Your current copy is unchanged.' : 'You are offline. Connect to the internet to update.';
+    btn.textContent = 'Update database'; delete btn.dataset.busy;
+  }
 }
-async function signOut() {
-  try { await fetch('/api/logout', { method: 'POST' }); } catch {}
-  try { await caches.delete('hymnal-data-v15'); } catch {}
-  location.reload();
-}
-window.signOut = signOut;
+window.updateDb = updateDb;
 
 (async () => {
   renderShell();
   try {
     const resp = await fetch('hymnal.db', { credentials: 'same-origin' });
-    if (resp.status === 401) { showLogin(); registerSW(); return; }
     if (!resp.ok) throw new Error('hymnal.db ' + resp.status);
-    // keep a private offline copy right away (the service worker is not in charge yet on the very first visit)
+    // keep an offline copy right away (the service worker is not in charge yet on the very first visit)
     try { const copy = resp.clone(); caches.open('hymnal-data-v15').then(c => c.put('hymnal.db', copy)).catch(() => {}); } catch {}
     const SQL = await initSqlJs({ locateFile: f => 'vendor/' + f });
     db = new SQL.Database(new Uint8Array(await resp.arrayBuffer()));
