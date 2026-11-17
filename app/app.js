@@ -230,7 +230,7 @@ async function loadStaff() {
   const resp = await fetch('staff.db', { credentials: 'same-origin' });
   if (resp.status === 401) { showLogin(); return false; }
   if (!resp.ok) throw new Error('staff.db ' + resp.status);
-  try { const copy = resp.clone(); caches.open('hymnal-data').then(c => c.put('staff.db', copy)).catch(() => {}); } catch {}
+  try { const copy = resp.clone(); caches.open('hymnal-data-v15').then(c => c.put('staff.db', copy)).catch(() => {}); } catch {}
   const SQL = await initSqlJs({ locateFile: f => 'vendor/' + f });
   sdb = new SQL.Database(new Uint8Array(await resp.arrayBuffer()));
   const sq = (sql, p = []) => { const st = sdb.prepare(sql); st.bind(p); const o = []; while (st.step()) o.push(st.getAsObject()); st.free(); return o; };
@@ -509,7 +509,7 @@ function viewDoc(slug) {
 }
 
 
-/* ------------------------------------------------------------- Gospel songs: search + language filter (titles; lyrics are on the source site) */
+/* ------------------------------------------------------------- Gospel songs: search + language filter (archived lyrics where available) */
 const GLANG = { en: 'English', ak: 'Akan (Twi)' };
 let gLang = store.get('glang', 'all'), gQuery = '', gOnly = false;
 let gSongs = null;
@@ -536,7 +536,7 @@ function viewGospelSong(id) {
   $('#view').innerHTML = `<article class="hymn"><div class="bar"><a href="#/gospel">‹ Gospel songs</a><span><button id="smaller">A−</button> <button id="bigger">A+</button></span></div>
     <h2 style="margin:.2em 0">${esc(s.title)}</h2><div class="meta">${GLANG[s.language]}${s.year ? ' · ' + s.year : ''}</div>
     <div class="prose" style="font-size:var(--fs);line-height:1.55;margin-top:12px">${s.lyrics.split(/\n\s*\n/).map(st => { const ls = st.split('\n'); const lab = /^(verse\s*\d+|chorus|refrain|bridge)$/i.test(ls[0]); return `<p class="stz">${lab ? `<b class="lab">${esc(ls[0])}</b>` : ''}${esc((lab ? ls.slice(1) : ls).join('\n'))}</p>`; }).join('')}</div>
-    <p class="credit" style="margin-top:18px">Public domain — ${esc(s.lyrics_basis)}.<br>Text from <a href="${esc(s.url)}" target="_blank" rel="noopener">the original post ↗</a>.</p></article>`;
+    <p class="credit" style="margin-top:18px">${esc(s.lyrics_basis || 'Lyrics archived from the source')}.<br>Text from <a href="${esc(s.url)}" target="_blank" rel="noopener">the original post ↗</a>.</p></article>`;
   $('#bigger').onclick = () => { fs = Math.min(40, fs + 2); store.set('fs', fs); renderShell(); };
   $('#smaller').onclick = () => { fs = Math.max(14, fs - 2); store.set('fs', fs); renderShell(); };
   window.scrollTo(0, 0);
@@ -544,11 +544,11 @@ function viewGospelSong(id) {
 function viewGospel() {
   const songs = loadGospel(); const n = { all: songs.length, en: songs.filter(s => s.language === 'en').length, ak: songs.filter(s => s.language === 'ak').length };
   $('#view').innerHTML = `<h2 style="margin:.2em 0">Gospel songs</h2>
-    <div class="hint">${n.all} songs · tap a title to read the lyrics on the original site</div>
+    <div class="hint">${n.all} songs · tap a title to read archived lyrics in the app when available</div>
     <input id="gq" type="search" placeholder="Search song titles (Twi letters ɔ ɛ optional)" autocomplete="off" enterkeyhint="search" value="${esc(gQuery)}">
     <div class="chips" role="group" aria-label="Language" style="margin-top:10px">${[['all', 'All'], ['en', 'English'], ['ak', 'Akan (Twi)']].map(([k, label]) => `<button class="chipbtn${gLang === k ? ' on' : ''}" data-g="${k}">${label} <span class="cnt">${n[k]}</span></button>`).join('')}<button class="chipbtn${gOnly ? ' on' : ''}" id="gonly">Lyrics in app <span class="cnt">${songs.filter(s => s.has).length}</span></button></div>
     <div id="gres"></div>
-    <footer style="margin-top:22px">Full lyrics are shown only for old hymns that are in the public domain. For every other song the title links to the original post; those lyrics belong to their authors.</footer>`;
+    <footer style="margin-top:22px">Lyrics are shown in the app when a matching archived text is available. Source posts are linked for checking; rights remain unverified.</footer>`;
   const inp = $('#gq'), res = $('#gres');
   const run = () => {
     gQuery = inp.value; const list = gospelSearch(gQuery, gLang, gOnly), shown = gQuery.trim() ? list.slice(0, 300) : list;       // browsing shows every song, grouped by letter
@@ -618,7 +618,7 @@ function showLogin(msg) {
 }
 async function signOut() {
   try { await fetch('/api/logout', { method: 'POST' }); } catch {}
-  try { await caches.delete('hymnal-data'); } catch {}
+  try { await caches.delete('hymnal-data-v15'); } catch {}
   location.reload();
 }
 window.signOut = signOut;
@@ -630,7 +630,7 @@ window.signOut = signOut;
     if (resp.status === 401) { showLogin(); registerSW(); return; }
     if (!resp.ok) throw new Error('hymnal.db ' + resp.status);
     // keep a private offline copy right away (the service worker is not in charge yet on the very first visit)
-    try { const copy = resp.clone(); caches.open('hymnal-data').then(c => c.put('hymnal.db', copy)).catch(() => {}); } catch {}
+    try { const copy = resp.clone(); caches.open('hymnal-data-v15').then(c => c.put('hymnal.db', copy)).catch(() => {}); } catch {}
     const SQL = await initSqlJs({ locateFile: f => 'vendor/' + f });
     db = new SQL.Database(new Uint8Array(await resp.arrayBuffer()));
     document.body.dataset.ready = '1'; $('#view').removeAttribute('aria-busy');

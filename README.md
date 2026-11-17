@@ -70,10 +70,7 @@ divisions come from the PDF's own bookmarks. It downloads once and then works of
 Bible references and "Section C5"-style cross-references in the book are links; contents lists link to their sections.
 
 ## Gospel songs
-`tools/build_gospel.py <gospel_lyrics.sqlite>` turns the blog archive (939 posts) into `tools/gospel_songs.json` — 825 songs (667 English, 158 Akan/Twi) with title, language and a link to the original post; duplicates are merged, and the two non-song posts are skipped. The source file has no lyric text, so only titles and links are kept. `build_db.py` loads them into `gospel_song`; the app's **Gospel** tab searches titles and filters by language.
+`tools/build_gospel.py <gospel_lyrics.sqlite>` turns the blog archive (939 posts) into `tools/gospel_songs.json` — 825 songs (667 English, 158 Akan/Twi) with title, language and a link to the original post; duplicates are merged, and the two non-song posts are skipped. `build_db.py` loads the songs and `tools/gospel_lyrics.json` into `gospel_song`; the app's **Gospel** tab searches titles and filters by language.
 
-### Gospel lyrics (public-domain hymns only)
-Full lyrics are stored only for songs listed in `tools/gospel_pd.json` (old hymns whose authors died long ago — Ghana's copyright term is life + 70 years)
-**and** whose text on the blog really is that hymn (`tools/fetch_gospel_pd.py` checks the opening and a second phrase of the real hymn, so modern songs that share a
-title, such as "Holy, Holy, Holy" or "Oh Happy Day", are rejected). Result: `tools/gospel_lyrics.json` → `gospel_song.lyrics`. Every other song stays title + link.
-To add a song, add a rule with its author/death year and opening words; to remove one, delete its rule and re-run both scripts.
+### Gospel lyrics
+Archived lyrics are included in the app for 823 songs whose text could be matched from the source archive. The 36 older public-domain hymns keep their verified source/basis text; the rest are marked `Text archived from the original post; rights unverified`. The source post is linked from every lyric view for checking. Remaining songs stay title + link. Rights and translations have not been independently verified.
