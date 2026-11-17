@@ -333,3 +333,9 @@ footer a:hover{color:var(--accent)}
   .themesel{padding:0 24px 0 10px;background-position:right 8px center}
   header#top{column-gap:var(--s2)}
 }
+
+/* document art (Apostles' Creed) */
+.docart{display:block;flex:none}
+.docart.mini{width:30px;height:40px;margin-left:auto;border-radius:4px;box-shadow:var(--shadow)}
+.docart.cover{width:84px;height:112px;border-radius:var(--radius);box-shadow:var(--shadow)}
+ul.list li a:has(.docart.mini){align-items:center}

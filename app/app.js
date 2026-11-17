@@ -32,6 +32,24 @@ function skeleton(label, kind = 'list', n = 7) {
   return `<div class="loading" role="status"><div class="head"><span class="spinner"></span><span>${esc(label)}</span></div><div class="bar-loop"></div>${body}</div>`;
 }
 
+/* ------------------------------------------------------------- document art */
+// The Apostles' Creed: a cross inside a ring of twelve points (the twelve apostles / twelve articles of the creed).
+// Drawn with theme tokens so it follows Reverent / Warm / Crisp and light / dark.
+function docArt(slug, cls = '') {
+  if (slug !== 'apostles-creed') return '';
+  const dots = Array.from({ length: 12 }, (_, i) => {
+    const a = (i * 30 - 90) * Math.PI / 180;
+    return `<circle cx="${(60 + 37 * Math.cos(a)).toFixed(1)}" cy="${(70 + 37 * Math.sin(a)).toFixed(1)}" r="${i === 0 ? 4.2 : 3.2}"/>`;
+  }).join('');
+  return `<svg class="docart ${cls}" viewBox="0 0 120 160" role="img" aria-label="The Apostles’ Creed">
+    <rect width="120" height="160" rx="8" style="fill:var(--accent)"/>
+    <rect x="8" y="8" width="104" height="144" rx="4" fill="none" style="stroke:var(--accent-fg)" stroke-opacity=".35" stroke-width="1.2"/>
+    <g style="fill:var(--accent-fg)">${dots}</g>
+    <path d="M60 47v47M45 62h30" fill="none" style="stroke:var(--accent-fg)" stroke-width="7" stroke-linecap="round"/>
+    <text x="60" y="137" text-anchor="middle" font-size="12" font-weight="700" letter-spacing="4.5" style="fill:var(--accent-fg);font-family:var(--font-head)">CREDO</text>
+  </svg>`;
+}
+
 /* ------------------------------------------------------------- shell */
 function setLang(l) {
   lang = l; store.set('lang', l); renderShell(); route();
@@ -300,7 +318,7 @@ function hl(text, q) {
 function docsList() {
   const docs = q('SELECT slug, title FROM document ORDER BY seq');
   if (!docs.length) return '';
-  return `<h3 class="sec" style="margin-top:6px">Documents</h3><ul class="list">${docs.map(d => `<li><a href="#/doc/${esc(d.slug)}"><span class="num">▤</span><span class="first">${esc(d.title)}<small>${q('SELECT language_name n FROM document_text WHERE slug=? ORDER BY seq', [d.slug]).map(x => x.n).join(' · ')}</small></span></a></li>`).join('')}</ul>`;
+  return `<h3 class="sec" style="margin-top:6px">Documents</h3><ul class="list">${docs.map(d => `<li><a href="#/doc/${esc(d.slug)}"><span class="num">${docArt(d.slug, 'mini') || '▤'}</span><span class="first">${esc(d.title)}<small>${q('SELECT language_name n FROM document_text WHERE slug=? ORDER BY seq', [d.slug]).map(x => x.n).join(' · ')}</small></span></a></li>`).join('')}</ul>`;
 }
 async function viewStaff() {
   $('#view').innerHTML = docsList() + skeleton('Opening the book…');
@@ -512,7 +530,7 @@ function viewDoc(slug) {
   const grid = cols.length > 1 && sbs;
   $('#view').innerHTML = `<article class="hymn doc"><div class="bar"><a href="#/staff">‹ Library</a>
       <span><button id="smaller">A−</button> <button id="bigger">A+</button> <button id="copy">Copy</button>${cols.length > 1 ? `<button id="sbsbtn">${sbs ? '▤ Stacked' : '◫ Side by side'}</button>` : ''}</span></div>
-    <h2 style="margin:.2em 0">${esc(d.title)}</h2>
+    ${docArt(slug) ? `<div class="bookhead">${docArt(slug, 'cover')}<h2 style="margin:0">${esc(d.title)}</h2></div>` : `<h2 style="margin:.2em 0">${esc(d.title)}</h2>`}
     <div class="chips" role="group" aria-label="Languages">${vers.map(v => `<button class="chipbtn${sel.includes(v.language) ? ' on' : ''}" data-l="${esc(v.language)}">${esc(v.n)}</button>`).join('')}</div>
     <div class="cols ${grid ? 'docgrid' : ''}" style="${grid ? `grid-template-columns:repeat(${cols.length},1fr)` : ''}">${cols.map(c => `<section class="col"><h3>${esc(c.v.n)}</h3><div class="docname">${esc(c.v.heading || '')}</div>${c.lines.map(t => `<p class="docline">${esc(t)}</p>`).join('')}</section>`).join('')}</div>
     ${d.source ? `<p class="credit" style="margin-top:18px">${esc(d.source)}</p>` : ''}</article>`;
