@@ -82,8 +82,8 @@ function applyTheme() {
 $('#themesel').addEventListener('change', e => { store.set('style', e.target.value); applyTheme(); });
 $('#modebtn').addEventListener('click', () => { const m = store.get('mode', 'auto'); store.set('mode', MODES[(MODES.indexOf(m) + 1) % 3]); applyTheme(); });
 matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', applyTheme);
-// keep the tab bar pinned right under the (sticky, wrapping) header
-new ResizeObserver(([e]) => document.documentElement.style.setProperty('--hdr', e.target.offsetHeight + 'px')).observe($('#top'));
+// sticky search + tabs height, used to pin list group headers just below them
+new ResizeObserver(([e]) => document.documentElement.style.setProperty('--hdr', e.target.offsetHeight + 'px')).observe($('#stick'));
 applyTheme();
 
 function hymnRow(n, first, sub) {
@@ -126,33 +126,159 @@ function search(text) {
   const rows = q(`SELECT DISTINCT hymn_number n FROM hymn_search WHERE language IN (${ph}) AND ${where} ORDER BY n LIMIT 120`, [...langs(), ...words.map(w => '%' + w + '%')]);
   return { nums: rows.map(r => r.n), note: `Words matching “${text}”` };
 }
-let lastQuery = '';
-function viewSearch() {
-  $('#view').innerHTML = `<input id="q" type="search" placeholder="Hymn number, words, or Bible passage (e.g. Psalm 23)" autocomplete="off" enterkeyhint="search" value="${esc(lastQuery)}">
-    <div class="hint">Try: <b>79</b> · <b>redeemer</b> · <b>Nyankopɔn</b> · <b>John 3:16</b></div><div id="res"></div>`;
-  const inp = $('#q'), res = $('#res');
-  const run = () => {
-    lastQuery = inp.value;
-    const r = search(inp.value);
-    if (!inp.value.trim()) {
-      const rec = recent.slice(0, 8);
-      res.innerHTML = rec.length ? `<div class="hint">Recently opened</div><ul class="list">${rowsFor(rec)}</ul>` : '';
-      return;
-    }
-    const gs = /^\d{1,3}$/.test(inp.value.trim()) ? [] : gospelSearch(inp.value, 'all');
-    const gsp = gs.length ? `<p class="hint"><a href="#/gospel" onclick="gQuery=${esc(JSON.stringify(inp.value.trim()))};gLang='all'">${gs.length} gospel song title${gs.length === 1 ? '' : 's'} match “${esc(inp.value.trim())}” →</a></p>` : '';
-    const book = /^\d{1,3}$/.test(inp.value.trim()) ? '' : `<p class="hint"><a href="#/staff/q/${encodeURIComponent(inp.value.trim())}">Search “${esc(inp.value.trim())}” in The Shepherd’s Staff →</a></p>`;
-    res.innerHTML = gsp + (r.nums.length ? `<div class="hint">${esc(r.note)} · ${r.nums.length}${r.nums.length === 120 ? '+' : ''} hymn(s)</div><ul class="list">${rowsFor(r.nums)}</ul>`
-      : `<p class="muted">${esc(r.note || 'No hymns found.')}</p>`) + book;
-  };
-  let t; inp.addEventListener('input', () => { clearTimeout(t); t = setTimeout(run, 150); });
-  inp.addEventListener('keydown', e => { if (e.key === 'Enter' && /^\d{1,3}$/.test(inp.value.trim())) location.hash = '#/h/' + +inp.value.trim(); });
-  $('#view').insertAdjacentHTML('beforeend', '<footer><a href="#" id="upd" onclick="updateDb();return false">Update database</a><div id="updmsg">' + (Date.now() - store.get('dbUpdated', 0) < 15000 ? 'Database updated ✓' : '') + '</div></footer>');
-  run(); if (!/Mobi|Android/i.test(navigator.userAgent)) inp.focus();
+/* ------------------------------------------------------------- global search (header): hymns, praise songs, library, directory */
+let gTimer = null;
+const gInp = $('#gq');
+gInp.addEventListener('input', () => {
+  clearTimeout(gTimer);
+  gTimer = setTimeout(() => {
+    const v = gInp.value.trim(), target = '#/search/' + encodeURIComponent(v);
+    if (!v) { if (location.hash.startsWith('#/search')) history.back(); return; }
+    if (location.hash.startsWith('#/search')) { history.replaceState(null, '', target); route(); } else location.hash = target;
+  }, 180);
+});
+gInp.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { const v = gInp.value.trim(); gInp.blur(); if (/^\d{1,3}$/.test(v) && +v >= 1 && +v <= 850) location.hash = '#/h/' + +v; }
+  if (e.key === 'Escape') { gInp.value = ''; gInp.dispatchEvent(new Event('input')); }
+});
+document.addEventListener('keydown', e => { if (e.key === '/' && !e.target.matches('input,textarea,select')) { e.preventDefault(); gInp.focus(); } });
+
+async function viewGlobalSearch(text) {
+  if (document.activeElement !== gInp && gInp.value.trim() !== text) gInp.value = text;
+  const t = text.trim();
+  if (!t) { $('#view').innerHTML = `<p class="muted pad">Type a hymn number, words from a hymn or song, a Bible passage (e.g. <b>Psalm 23</b>), or a minister, congregation or district.</p>`; return; }
+  const isNum = /^\d{1,3}$/.test(t);
+  const sec = (title, count, body, more) => `<section class="rsec"><h3 class="sec">${title} <span class="muted">${count}</span></h3>${body}${more || ''}</section>`;
+  let html = '';
+  const r = search(t);
+  if (r.nums.length) html += sec('PHB Hymns', r.nums.length + (r.nums.length === 120 ? '+' : ''), `<div class="hint">${esc(r.note)}</div><ul class="list">${rowsFor(r.nums.slice(0, 25))}</ul>`,
+    r.nums.length > 25 ? `<p class="hint">Showing 25. Add another word to narrow it down.</p>` : '');
+  else if (r.note) html += `<p class="muted">${esc(r.note)}</p>`;
+  const gs = isNum ? [] : gospelSearch(t, 'all');
+  if (gs.length) html += sec('Praise &amp; Worship', gs.length, `<ul class="list">${gs.slice(0, 12).map(gospelRow).join('')}</ul>`,
+    gs.length > 12 ? `<p class="hint"><a href="#/praise" onclick="gQuery=${esc(JSON.stringify(t))};gLang='all'">See all ${gs.length} songs →</a></p>` : '');
+  if (!isNum) {
+    const f = '%' + fold(t) + '%';
+    const docs = q(`SELECT DISTINCT d.slug, d.title FROM document d LEFT JOIN document_line l ON l.slug=d.slug WHERE lower(d.title) LIKE ? OR lower(l.text) LIKE ?`, [f, f]);
+    const lib = docs.map(d => `<li><a href="#/doc/${esc(d.slug)}"><span class="num">${docArt(d.slug, 'mini') || '▤'}</span><span class="first">${esc(d.title)}</span></a></li>`).join('')
+      + `<li><a href="#/staff/q/${encodeURIComponent(t)}"><span class="num"><img class="cover mini" src="shepherds-staff-cover.jpg" alt=""></span><span class="first">Search “${esc(t)}” in The Shepherd’s Staff<small>1302 pages · full text</small></span></a></li>`;
+    html += sec('Library', '', `<ul class="list">${lib}</ul>`);
+  }
+  if (!isNum && t.length >= 2) {
+    $('#view').innerHTML = html + skeleton('Searching the directory…', 'list', 3);
+    try {
+      await loadDir();
+      if (location.hash !== '#/search/' + encodeURIComponent(text)) return;      // the user kept typing
+      const hits = dirSearch(t);
+      if (hits.length) html += sec('Directory', hits.length + (hits.length === 200 ? '+' : ''), `<ul class="list">${hits.slice(0, 25).map(personRow).join('')}</ul>`, hits.length > 25 ? '<p class="hint">Showing 25. Add another word to narrow it down.</p>' : '');
+    } catch (e) { html += `<p class="warn">Directory unavailable: ${esc(e.message)}</p>`; }
+  }
+  $('#view').innerHTML = html || `<p class="muted pad">Nothing matches “${esc(t)}”.</p>`;
+}
+
+/* ------------------------------------------------------------- hubs: Music, Library */
+const ICON = {
+  hymns: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z"/><path d="M5 19.5A1.5 1.5 0 0 0 6.5 21H19v-3"/><path d="M14 6.5v6.3"/><circle cx="12.3" cy="13" r="1.7"/><path d="M14 6.5l2.6.9"/></svg>',
+  praise: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></svg>',
+  doc: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6.5A1.5 1.5 0 0 0 5 4.5v15A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V8z"/><path d="M14 3v5h5M8.5 12.5h7M8.5 16h5"/></svg>',
+  order: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M5 7h14"/><path d="M5 7l-2.5 6a3 3 0 0 0 5 0zM19 7l-2.5 6a3 3 0 0 0 5 0z"/><path d="M8 21h8"/></svg>',
+  people: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.2a5 5 0 0 1 5.5 4.8"/></svg>'
+};
+const hubRow = (href, art, title, sub, badge) => `<li><a class="hubrow" href="${href}"><span class="hubart">${art}</span><span class="hubtxt"><b>${title}</b><small>${sub}</small></span>${badge ? `<span class="badge">${badge}</span>` : ''}<span class="chev" aria-hidden="true">›</span></a></li>`;
+const tile = (icon, cls = '') => `<span class="tile ${cls}">${ICON[icon]}</span>`;
+function shellFooter() {
+  return '<footer><a href="#" id="upd" onclick="updateDb();return false">Update database</a><div id="updmsg">' + (Date.now() - store.get('dbUpdated', 0) < 15000 ? 'Database updated ✓' : '') + '</div></footer>';
+}
+function viewMusic() {
+  const nh = q('SELECT COUNT(DISTINCT hymn_number) n FROM hymn_text')[0].n, ns = loadGospel().length;
+  $('#view').innerHTML = `<h2>Music</h2><ul class="hub">
+    ${hubRow('#/hymns', tile('hymns'), 'PHB Hymns', `Presbyterian Hymn Book · ${nh} hymns · English &amp; Twi`)}
+    ${hubRow('#/praise', tile('praise'), 'Praise &amp; Worship', `${ns} gospel songs · English &amp; Akan`)}
+  </ul>` + (recent.length ? `<h3 class="sec">Recently opened</h3><ul class="list">${rowsFor(recent.slice(0, 6))}</ul>` : '') + shellFooter();
+}
+function viewLibrary() {
+  $('#view').innerHTML = `<h2>Library</h2><ul class="hub">
+    ${hubRow('#/doc/apostles-creed', docArt('apostles-creed', 'mini'), 'The Apostles’ Creed', 'English · Twi · Ga · Ewe')}
+    ${hubRow('#/soon/constitution', tile('doc'), 'Constitution', 'Presbyterian Church of Ghana', 'Coming soon')}
+    ${hubRow('#/soon/manual-of-order', tile('order'), 'Manual of Order', 'Presbyterian Church of Ghana', 'Coming soon')}
+    ${hubRow('#/staff', '<img class="cover mini" src="shepherds-staff-cover.jpg" alt="">', 'The Shepherd’s Staff', 'Ralph Mahoney (ed.) · 1302 pages · full-text search')}
+  </ul>` + shellFooter();
+}
+const SOON = { constitution: 'Constitution', 'manual-of-order': 'Manual of Order' };
+function viewSoon(slug) {
+  const t = SOON[slug] || 'This document';
+  $('#view').innerHTML = `<div class="bar"><a href="#/library">‹ Library</a></div>
+    <div class="empty">${tile(slug === 'constitution' ? 'doc' : 'order', 'lg')}<h2>${esc(t)}</h2>
+    <p class="muted">The ${esc(t)} of the Presbyterian Church of Ghana will be added here. Once it is in, it opens like the Apostles’ Creed, with search and adjustable text size.</p>
+    <a class="btn" href="#/library">Back to the Library</a></div>`;
+}
+
+/* ------------------------------------------------------------- PHB Hymns: by number / by theme */
+function viewHymns(mode) {
+  const l = firstLang();
+  const seg = `<div class="seg wide" role="tablist" aria-label="Browse hymns"><button role="tab" aria-selected="${mode !== 'themes'}" class="${mode !== 'themes' ? 'on' : ''}" onclick="location.hash='#/hymns'">By number</button><button role="tab" aria-selected="${mode === 'themes'}" class="${mode === 'themes' ? 'on' : ''}" onclick="location.hash='#/hymns/themes'">By theme</button></div>`;
+  const head = `<div class="bar"><a href="#/music">‹ Music</a></div><h2>PHB Hymns</h2><div class="hint">Presbyterian Hymn Book · ${lang === 'both' ? 'English &amp; Twi' : LANGNAME[l]}</div>${seg}`;
+  if (mode === 'themes') { $('#view').innerHTML = head + `<div id="themes"></div>`; viewThemes($('#themes')); return; }
+  const nums = Array.from({ length: 850 }, (_, i) => i + 1);
+  const blocks = [];
+  for (let i = 0; i < 850; i += 50) blocks.push([i + 1, Math.min(850, i + 50)]);
+  $('#view').innerHTML = head + `<div class="az">${blocks.map(([x]) => `<a href="#" data-n="${x}">${x}</a>`).join('')}</div>
+    <ul class="list">${blocks.map(([x, y]) => `<li class="grp" id="hn-${x}">${x}–${y}</li>` + rowsFor(nums.slice(x - 1, y))).join('')}</ul>`;
+  document.querySelectorAll('.az a[data-n]').forEach(x => x.onclick = e => { e.preventDefault(); document.getElementById('hn-' + x.dataset.n)?.scrollIntoView({ block: 'start' }); });
+}
+
+/* ------------------------------------------------------------- Directory (names & roles only; no phone numbers or emails) */
+let ddb = null;
+const dq = (sql, p = []) => { const st = ddb.prepare(sql); st.bind(p); const o = []; while (st.step()) o.push(st.getAsObject()); st.free(); return o; };
+async function loadDir() {
+  if (ddb) return;
+  const resp = await fetch('directory.db');
+  if (!resp.ok) throw new Error('directory.db ' + resp.status);
+  try { const copy = resp.clone(); caches.open('hymnal-data-v15').then(c => c.put('directory.db', copy)).catch(() => {}); } catch {}
+  const SQL = await initSqlJs({ locateFile: f => 'vendor/' + f });
+  ddb = new SQL.Database(new Uint8Array(await resp.arrayBuffer()));
+}
+const AREA_LABEL = { presbytery_office: 'Presbytery office', departmental_directors: 'Directors & chaplains', district: 'District', sub_district: 'Sub-district', mission_field: 'Mission field', ecumenical: 'Ecumenical', chaplaincy: 'Chaplaincy', retired: 'Retired', sick_leave: 'On sick leave', other: '' };
+function personRow(p) {
+  const where = [p.congregation, p.area, p.presbytery].filter(Boolean).map(esc).join(' · ');
+  const role = p.role || ({ Rev: 'Minister', Cat: 'Catechist', Caretaker: 'Caretaker' }[p.category] || '');
+  const initials = (p.name.match(/\b[A-Z]/g) || ['?']).filter((_, i, arr) => i === 0 || i === arr.length - 1).join('');
+  return `<li class="person"><span class="avatar" aria-hidden="true">${esc(initials)}</span><span class="first">${p.title ? `<span class="muted">${esc(p.title)}</span> ` : ''}${esc(p.name)}<small>${role ? `<b>${esc(role)}</b>${where ? ' · ' : ''}` : ''}${where}</small></span></li>`;
+}
+function dirSearch(text) {
+  const words = fold(text).split(' ').filter(Boolean); if (!words.length) return [];
+  return dq(`SELECT p.*, a.name area, pr.name presbytery FROM person p JOIN area a ON a.id=p.area_id JOIN presbytery pr ON pr.id=a.presbytery_id
+    WHERE ${words.map(() => 'p.norm LIKE ?').join(' AND ')} ORDER BY p.is_dm DESC, p.category='Rev' DESC, p.name LIMIT 200`, words.map(w => '% ' + w + '%'));
+}
+async function viewDirectory(kind, id) {
+  if (!ddb) $('#view').innerHTML = skeleton('Opening the directory…');
+  try { await loadDir(); } catch (e) { $('#view').innerHTML = `<p class="warn">Could not load the directory: ${esc(e.message)}</p>`; return; }
+  const note = `<p class="hint">Names, roles and congregations only. Contact details are not published in the app.</p>`;
+  if (kind === 'a') {
+    const a = dq('SELECT a.*, pr.name presbytery FROM area a JOIN presbytery pr ON pr.id=a.presbytery_id WHERE a.id=?', [id])[0];
+    if (!a) { $('#view').innerHTML = '<p class="muted pad">Not found.</p>'; return; }
+    const ppl = dq(`SELECT p.*, NULL area, NULL presbytery FROM person p WHERE area_id=? ORDER BY p.is_dm DESC, CASE p.category WHEN 'Rev' THEN 0 WHEN 'Cat' THEN 1 WHEN 'Caretaker' THEN 2 ELSE 3 END, p.congregation, p.name`, [id]);
+    $('#view').innerHTML = `<div class="bar"><a href="#/directory/p/${a.presbytery_id}">‹ ${esc(a.presbytery)}</a></div>
+      <h2>${esc(a.name)}</h2><div class="hint">${AREA_LABEL[a.type] ? esc(AREA_LABEL[a.type]) + ' · ' : ''}${esc(a.presbytery)} Presbytery · ${ppl.length} people</div>
+      <ul class="list">${ppl.map(personRow).join('')}</ul>${note}`;
+    window.scrollTo(0, 0); return;
+  }
+  if (kind === 'p') {
+    const pr = dq('SELECT * FROM presbytery WHERE id=?', [id])[0];
+    if (!pr) { $('#view').innerHTML = '<p class="muted pad">Not found.</p>'; return; }
+    const areas = dq(`SELECT a.*, COUNT(p.id) n FROM area a LEFT JOIN person p ON p.area_id=a.id WHERE a.presbytery_id=? GROUP BY a.id ORDER BY a.type<>'presbytery_office', a.type<>'departmental_directors', a.name`, [id]);
+    $('#view').innerHTML = `<div class="bar"><a href="#/directory">‹ Directory</a></div><h2>${esc(pr.name)}</h2><div class="hint">Presbytery · ${areas.length} districts and offices</div>
+      <ul class="list">${areas.map(a => `<li><a href="#/directory/a/${a.id}"><span class="first">${esc(a.name)}<small>${esc(AREA_LABEL[a.type] || 'District')}</small></span><span class="cnt">${a.n}</span></a></li>`).join('')}</ul>`;
+    window.scrollTo(0, 0); return;
+  }
+  const ps = dq(`SELECT pr.id, pr.name, COUNT(DISTINCT a.id) na, COUNT(p.id) n FROM presbytery pr JOIN area a ON a.presbytery_id=pr.id LEFT JOIN person p ON p.area_id=a.id GROUP BY pr.id ORDER BY pr.name`);
+  const total = ps.reduce((x, y) => x + y.n, 0);
+  $('#view').innerHTML = `<h2>Directory</h2><div class="hint">${ps.length} presbyteries · ${total.toLocaleString()} ministers, catechists and caretakers. Search above for a name, congregation or district.</div>
+    <ul class="list">${ps.map(p => `<li><a href="#/directory/p/${p.id}"><span class="first">${esc(p.name)}<small>${p.na} districts and offices</small></span><span class="cnt">${p.n}</span></a></li>`).join('')}</ul>${note}` + shellFooter();
 }
 
 /* ------------------------------------------------------------- themes */
-function viewThemes() {
+function viewThemes(into = $('#view')) {
   const l = firstLang();
   const rows = q(`SELECT hymn_number n, first_line f, theme t, subtheme s FROM hymn_text WHERE language=? ORDER BY hymn_number`, [l]);
   const tree = new Map();
@@ -161,7 +287,7 @@ function viewThemes() {
     if (!tree.has(t)) tree.set(t, new Map());
     const sm = tree.get(t); if (!sm.has(s)) sm.set(s, []); sm.get(s).push(r);
   });
-  let h = `<div class="hint">Themes of the ${LANGNAME[l]} book</div>`;
+  let h = '';
   for (const [t, sm] of tree) {
     const count = [...sm.values()].reduce((a, b) => a + b.length, 0);
     h += `<details><summary>${esc(t)} <span class="muted">(${count})</span></summary>`;
@@ -171,14 +297,14 @@ function viewThemes() {
     }
     h += '</details>';
   }
-  $('#view').innerHTML = h;
+  into.innerHTML = h;
 }
 
 /* ------------------------------------------------------------- saved */
 function viewSaved() {
-  $('#view').innerHTML = (favs.length ? `<div class="hint">Saved hymns</div><ul class="list">${rowsFor([...favs].sort((a, b) => a - b))}</ul>`
-    : `<p class="muted pad">No saved hymns yet. Open a hymn and tap ☆ to keep it here.</p>`) +
-    (recent.length ? `<div class="hint">Recently opened</div><ul class="list">${rowsFor(recent.slice(0, 15))}</ul>` : '');
+  $('#view').innerHTML = `<h2>Favourites</h2>` + (favs.length ? `<ul class="list">${rowsFor([...favs].sort((a, b) => a - b))}</ul>`
+    : `<p class="muted">No favourites yet. Open a hymn and tap ☆ to keep it here.</p>`) +
+    (recent.length ? `<h3 class="sec">Recently opened</h3><ul class="list">${rowsFor(recent.slice(0, 15))}</ul>` : '') + shellFooter();
 }
 
 /* ------------------------------------------------------------- hymn */
@@ -222,6 +348,7 @@ function viewHymn(n) {
   const meta = texts.find(t => t.language === firstLang()) || texts[0] || {};
   const isFav = favs.includes(n);
   $('#view').innerHTML = `<article class="hymn">
+    <div class="bar"><a href="#/hymns">‹ PHB Hymns</a></div>
     <div class="bar"><a href="#/hymn-prev">‹ ${Math.max(1, n - 1)}</a>
       <span><button class="star" id="fav" title="Save">${isFav ? '★' : '☆'}</button>
       <button id="smaller" aria-label="Smaller text">A−</button> <button id="bigger" aria-label="Larger text">A+</button>
@@ -315,20 +442,14 @@ function hl(text, q) {
   for (const [a, b] of marks) { if (a < pos) continue; out += esc(text.slice(pos, a)) + '<mark>' + esc(text.slice(a, b)) + '</mark>'; pos = b; }
   return out + esc(text.slice(pos));
 }
-function docsList() {
-  const docs = q('SELECT slug, title FROM document ORDER BY seq');
-  if (!docs.length) return '';
-  return `<h3 class="sec" style="margin-top:6px">Documents</h3><ul class="list">${docs.map(d => `<li><a href="#/doc/${esc(d.slug)}"><span class="num">${docArt(d.slug, 'mini') || '▤'}</span><span class="first">${esc(d.title)}<small>${q('SELECT language_name n FROM document_text WHERE slug=? ORDER BY seq', [d.slug]).map(x => x.n).join(' · ')}</small></span></a></li>`).join('')}</ul>`;
-}
 async function viewStaff() {
-  $('#view').innerHTML = docsList() + skeleton('Opening the book…');
+  $('#view').innerHTML = skeleton('Opening the book…');
   try { if (!await loadStaff()) return; } catch (e) { $('#view').innerHTML = `<p class="warn">Could not load the library: ${esc(e.message)}</p>`; return; }
-  $('#view').innerHTML = `<div class="bookhead"><img class="cover" src="shepherds-staff-cover.jpg" width="720" height="1080" alt="The Shepherd’s Staff — book cover">
+  $('#view').innerHTML = `<div class="bar"><a href="#/library">‹ Library</a></div><div class="bookhead"><img class="cover" src="shepherds-staff-cover.jpg" width="720" height="1080" alt="The Shepherd’s Staff — book cover">
     <div><h2 style="margin:.2em 0">The Shepherd’s Staff</h2>
     <div class="hint">Ralph Mahoney (ed.), World MAP · ${spages.length} pages · full-text search</div></div></div>
     <input id="sq" type="search" placeholder="Search the book (use “quotes” for an exact phrase)" autocomplete="off" enterkeyhint="search" value="${esc(staffQuery)}">
     <div id="sres"></div>`;
-  $('#view').insertAdjacentHTML('afterbegin', docsList());
   const inp = $('#sq'), res = $('#sres');
   const run = () => {
     staffQuery = inp.value; const q = inp.value.trim();
@@ -528,7 +649,7 @@ function viewDoc(slug) {
   const lines = l => q('SELECT text FROM document_line WHERE slug=? AND language=? ORDER BY seq', [slug, l]).map(r => r.text);
   const cols = sel.map(l => { const v = vers.find(x => x.language === l); return { v, lines: lines(l) }; });
   const grid = cols.length > 1 && sbs;
-  $('#view').innerHTML = `<article class="hymn doc"><div class="bar"><a href="#/staff">‹ Library</a>
+  $('#view').innerHTML = `<article class="hymn doc"><div class="bar"><a href="#/library">‹ Library</a>
       <span><button id="smaller">A−</button> <button id="bigger">A+</button> <button id="copy">Copy</button>${cols.length > 1 ? `<button id="sbsbtn">${sbs ? '▤ Stacked' : '◫ Side by side'}</button>` : ''}</span></div>
     ${docArt(slug) ? `<div class="bookhead">${docArt(slug, 'cover')}<h2 style="margin:0">${esc(d.title)}</h2></div>` : `<h2 style="margin:.2em 0">${esc(d.title)}</h2>`}
     <div class="chips" role="group" aria-label="Languages">${vers.map(v => `<button class="chipbtn${sel.includes(v.language) ? ' on' : ''}" data-l="${esc(v.language)}">${esc(v.n)}</button>`).join('')}</div>
@@ -568,13 +689,13 @@ function gospelSearch(text, langFilter, onlyLyrics) {
 function gospelRow(s) {
   const extra = s.also_urls ? JSON.parse(s.also_urls) : [];
   const meta = `${GLANG[s.language]}${s.year ? ' · ' + s.year : ''}${extra.length ? ' · ' + (extra.length + 1) + ' posts' : ''}`;
-  if (s.has) return `<li class="gs"><a href="#/gospel/${s.id}"><span class="first">${esc(s.title)}<small>${meta}</small></span><span class="badge">Lyrics</span></a></li>`;
+  if (s.has) return `<li class="gs"><a href="#/praise/${s.id}"><span class="first">${esc(s.title)}<small>${meta}</small></span><span class="badge">Lyrics</span></a></li>`;
   return `<li class="gs"><a href="${esc(s.url)}" target="_blank" rel="noopener"><span class="first">${esc(s.title)}<small>${meta}</small></span><span class="ext" aria-hidden="true">↗</span></a>${extra.map((u, i) => `<a class="alt" href="${esc(u)}" target="_blank" rel="noopener">post ${i + 2}</a>`).join('')}</li>`;
 }
 function viewGospelSong(id) {
   const s = q('SELECT * FROM gospel_song WHERE id=?', [id])[0];
-  if (!s || !s.lyrics) { location.replace('#/gospel'); return; }
-  $('#view').innerHTML = `<article class="hymn"><div class="bar"><a href="#/gospel">‹ Gospel songs</a><span><button id="smaller">A−</button> <button id="bigger">A+</button></span></div>
+  if (!s || !s.lyrics) { location.replace('#/praise'); return; }
+  $('#view').innerHTML = `<article class="hymn"><div class="bar"><a href="#/praise">‹ Praise &amp; Worship</a><span><button id="smaller">A−</button> <button id="bigger">A+</button></span></div>
     <h2 style="margin:.2em 0">${esc(s.title)}</h2><div class="meta">${GLANG[s.language]}${s.year ? ' · ' + s.year : ''}</div>
     <div class="prose" style="font-size:var(--fs);line-height:1.55;margin-top:12px">${s.lyrics.split(/\n\s*\n/).map(st => { const ls = st.split('\n'); const lab = /^(verse\s*\d+|chorus|refrain|bridge)$/i.test(ls[0]); return `<p class="stz">${lab ? `<b class="lab">${esc(ls[0])}</b>` : ''}${esc((lab ? ls.slice(1) : ls).join('\n'))}</p>`; }).join('')}</div>
     <p class="credit" style="margin-top:18px">${esc(s.lyrics_basis || 'Lyrics archived from the source')}.<br>Text from <a href="${esc(s.url)}" target="_blank" rel="noopener">the original post ↗</a>.</p></article>`;
@@ -584,13 +705,13 @@ function viewGospelSong(id) {
 }
 function viewGospel() {
   const songs = loadGospel(); const n = { all: songs.length, en: songs.filter(s => s.language === 'en').length, ak: songs.filter(s => s.language === 'ak').length };
-  $('#view').innerHTML = `<h2 style="margin:.2em 0">Gospel songs</h2>
+  $('#view').innerHTML = `<div class="bar"><a href="#/music">‹ Music</a></div><h2 style="margin:.2em 0">Praise &amp; Worship</h2>
     <div class="hint">${n.all} songs · tap a title to read archived lyrics in the app when available</div>
-    <input id="gq" type="search" placeholder="Search song titles (Twi letters ɔ ɛ optional)" autocomplete="off" enterkeyhint="search" value="${esc(gQuery)}">
+    <input id="pq" type="search" placeholder="Search song titles (Twi letters ɔ ɛ optional)" autocomplete="off" enterkeyhint="search" value="${esc(gQuery)}">
     <div class="chips" role="group" aria-label="Language" style="margin-top:10px">${[['all', 'All'], ['en', 'English'], ['ak', 'Akan (Twi)']].map(([k, label]) => `<button class="chipbtn${gLang === k ? ' on' : ''}" data-g="${k}">${label} <span class="cnt">${n[k]}</span></button>`).join('')}<button class="chipbtn${gOnly ? ' on' : ''}" id="gonly">Lyrics in app <span class="cnt">${songs.filter(s => s.has).length}</span></button></div>
     <div id="gres"></div>
     <footer style="margin-top:22px">Lyrics are shown in the app when a matching archived text is available. Source posts are linked for checking; rights remain unverified.</footer>`;
-  const inp = $('#gq'), res = $('#gres');
+  const inp = $('#pq'), res = $('#gres');
   const run = () => {
     gQuery = inp.value; const list = gospelSearch(gQuery, gLang, gOnly), shown = gQuery.trim() ? list.slice(0, 300) : list;       // browsing shows every song, grouped by letter
     if (!list.length) { res.innerHTML = '<p class="muted" style="margin-top:14px">No songs match.</p>'; return; }
@@ -615,19 +736,28 @@ function viewGospel() {
 function route() {
   if (!db) return;
   const h = location.hash || '#/';
-  const tab = h.startsWith('#/gospel') ? 'gospel' : h.startsWith('#/themes') ? 'themes' : h.startsWith('#/saved') ? 'saved' : h.startsWith('#/staff') ? 'staff' : 'search';
+  // old links keep working
+  for (const [re, to] of [[/^#\/?$/, '#/music'], [/^#\/themes/, '#/hymns/themes'], [/^#\/gospel/, '#/praise']]) if (re.test(h)) { location.replace(h.replace(re, to)); return; }
+  const tab = /^#\/(music|hymns|h\/|praise)/.test(h) ? 'music' : /^#\/(library|staff|doc|soon|ref)/.test(h) ? 'library' : h.startsWith('#/directory') ? 'directory' : h.startsWith('#/saved') ? 'saved' : '';
   document.querySelectorAll('#tabs a').forEach(a => a.classList.toggle('on', a.dataset.tab === tab));
-  const m = h.match(/^#\/h\/(\d+)/);
-  const sp = h.match(/^#\/staff\/p\/(\d+)(?:\/(.*))?$/);
-  const dm = h.match(/^#\/doc\/([\w-]+)$/);
-  if (dm) { document.querySelectorAll('#tabs a').forEach(x => x.classList.toggle('on', x.dataset.tab === 'staff')); viewDoc(dm[1]); return; }
-  const rf = h.match(/^#\/ref\/([^/]+)\/(\d+)(?:\/(.*))?$/);
-  if (rf) { document.querySelectorAll('#tabs a').forEach(x => x.classList.toggle('on', x.dataset.tab === 'staff')); viewRef(decodeURIComponent(rf[1]), +rf[2], decodeURIComponent(rf[3] || '')); return; }
-  const sq = h.match(/^#\/staff\/q\/(.*)$/);
-  if (sq) { staffQuery = decodeURIComponent(sq[1]); location.replace('#/staff'); return; }
-  if (tab === 'gospel') { const gm = h.match(/^#\/gospel\/(\d+)$/); gm ? viewGospelSong(+gm[1]) : viewGospel(); return; }
-  if (tab === 'staff') { sp ? viewStaffPage(+sp[1], decodeURIComponent(sp[2] || '')) : viewStaff(); return; }
-  if (m) viewHymn(+m[1]); else if (tab === 'themes') viewThemes(); else if (tab === 'saved') viewSaved(); else viewSearch();
+  if (!h.startsWith('#/search') && document.activeElement !== gInp) gInp.value = '';
+  let m;
+  if ((m = h.match(/^#\/search\/?(.*)$/))) return viewGlobalSearch(decodeURIComponent(m[1]));
+  if ((m = h.match(/^#\/h\/(\d+)/))) return viewHymn(+m[1]);
+  if ((m = h.match(/^#\/hymns(\/themes)?$/))) return viewHymns(m[1] ? 'themes' : 'number');
+  if ((m = h.match(/^#\/praise\/(\d+)$/))) return viewGospelSong(+m[1]);
+  if (h.startsWith('#/praise')) return viewGospel();
+  if ((m = h.match(/^#\/doc\/([\w-]+)$/))) return viewDoc(m[1]);
+  if ((m = h.match(/^#\/soon\/([\w-]+)$/))) return viewSoon(m[1]);
+  if ((m = h.match(/^#\/ref\/([^/]+)\/(\d+)(?:\/(.*))?$/))) return viewRef(decodeURIComponent(m[1]), +m[2], decodeURIComponent(m[3] || ''));
+  if ((m = h.match(/^#\/staff\/q\/(.*)$/))) { staffQuery = decodeURIComponent(m[1]); location.replace('#/staff'); return; }
+  if ((m = h.match(/^#\/staff\/p\/(\d+)(?:\/(.*))?$/))) return viewStaffPage(+m[1], decodeURIComponent(m[2] || ''));
+  if (h.startsWith('#/staff')) return viewStaff();
+  if (h.startsWith('#/library')) return viewLibrary();
+  if ((m = h.match(/^#\/directory\/([pa])\/(\d+)$/))) return viewDirectory(m[1], +m[2]);
+  if (h.startsWith('#/directory')) return viewDirectory();
+  if (h.startsWith('#/saved')) return viewSaved();
+  viewMusic();
 }
 window.addEventListener('hashchange', route);
 
@@ -640,6 +770,7 @@ async function updateDb() {
     const cache = await caches.open('hymnal-data-v15').catch(() => null);
     const files = ['hymnal.db'];
     if (sdb || (cache && await cache.match('staff.db'))) files.push('staff.db');   // only refresh the library if it was downloaded
+    if (ddb || (cache && await cache.match('directory.db'))) files.push('directory.db');
     for (const f of files) {
       const r = await fetch(f, { credentials: 'same-origin', cache: 'reload' });
       if (!r.ok) throw new Error(f + ' ' + r.status);

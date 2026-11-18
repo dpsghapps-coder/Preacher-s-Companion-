@@ -23,13 +23,17 @@
     <button data-lang="en">English</button><button data-lang="tw">Twi</button><button data-lang="both">Both</button>
   </div>
 </header>
-<nav id="tabs">
-  <a href="#/" data-tab="search">Search</a>
-  <a href="#/themes" data-tab="themes">Themes</a>
-  <a href="#/staff" data-tab="staff">Library</a>
-  <a href="#/gospel" data-tab="gospel">Gospel</a>
-  <a href="#/saved" data-tab="saved">Saved</a>
-</nav>
+<div id="stick">
+  <form id="gsearch" role="search" onsubmit="return false">
+    <input id="gq" type="search" placeholder="Search hymns, songs, library, directory" aria-label="Search everything" autocomplete="off" enterkeyhint="search">
+  </form>
+  <nav id="tabs">
+    <a href="#/music" data-tab="music">Music</a>
+    <a href="#/library" data-tab="library">Library</a>
+    <a href="#/directory" data-tab="directory">Directory</a>
+    <a href="#/saved" data-tab="saved">Favourites</a>
+  </nav>
+</div>
 <main id="view" aria-busy="true"><div class="loading" role="status"><div class="head"><span class="spinner"></span><span>Opening the hymnal…</span></div><div class="bar-loop"></div><div class="skel-row"><span class="skel n"></span><span class="col"><span class="skel" style="width:88%"></span><span class="skel" style="width:55%;height:10px"></span></span></div><div class="skel-row"><span class="skel n"></span><span class="col"><span class="skel" style="width:72%"></span><span class="skel" style="width:40%;height:10px"></span></span></div><div class="skel-row"><span class="skel n"></span><span class="col"><span class="skel" style="width:95%"></span><span class="skel" style="width:60%;height:10px"></span></span></div><div class="skel-row"><span class="skel n"></span><span class="col"><span class="skel" style="width:65%"></span><span class="skel" style="width:35%;height:10px"></span></span></div><div class="skel-row"><span class="skel n"></span><span class="col"><span class="skel" style="width:80%"></span><span class="skel" style="width:50%;height:10px"></span></span></div><div class="skel-row"><span class="skel n"></span><span class="col"><span class="skel" style="width:90%"></span><span class="skel" style="width:45%;height:10px"></span></span></div><div class="skel-row"><span class="skel n"></span><span class="col"><span class="skel" style="width:70%"></span><span class="skel" style="width:58%;height:10px"></span></span></div></div></main>
 <script src="vendor/sql-wasm.js"></script>
 <script src="app.js"></script>

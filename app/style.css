@@ -131,9 +131,9 @@ h2{font-size:1.75rem;margin:var(--s2) 0 var(--s1)}
 /* =====================================================================
    App shell: header (brand, language, theme) + tabs, sticky together
    ===================================================================== */
-header#top{position:sticky;top:0;z-index:10;display:flex;align-items:center;flex-wrap:wrap;gap:var(--s2) var(--s3);
+header#top{position:relative;z-index:10;display:flex;align-items:center;flex-wrap:wrap;gap:var(--s2) var(--s3);
   padding:var(--s3) max(var(--s4),env(safe-area-inset-left)) var(--s2);padding-top:calc(var(--s3) + env(safe-area-inset-top));
-  background:color-mix(in oklch,var(--bg) 92%,transparent);backdrop-filter:saturate(1.4) blur(10px);-webkit-backdrop-filter:saturate(1.4) blur(10px)}
+  background:var(--bg)}
 .brand{display:flex;align-items:center;gap:10px;color:var(--fg);text-decoration:none;font-family:var(--font-head);font-weight:var(--head-weight);
   font-size:1.2rem;letter-spacing:var(--head-track);margin-right:auto;min-height:var(--tap)}
 .brand .mark{width:30px;height:30px;flex:none;border-radius:var(--radius);background:var(--accent);color:var(--accent-fg);display:grid;place-items:center}
@@ -155,9 +155,11 @@ header#top{position:sticky;top:0;z-index:10;display:flex;align-items:center;flex
 .iconbtn svg{width:20px;height:20px}
 .iconbtn:hover,.themesel:hover{background:var(--accent-soft)}
 
-nav#tabs{position:sticky;top:var(--hdr,0px);z-index:9;display:flex;gap:var(--s1);padding:0 max(var(--s3),env(safe-area-inset-left));
-  background:color-mix(in oklch,var(--bg) 92%,transparent);backdrop-filter:saturate(1.4) blur(10px);-webkit-backdrop-filter:saturate(1.4) blur(10px);
-  border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+#stick{position:sticky;top:0;z-index:9;padding-top:env(safe-area-inset-top);
+  background:color-mix(in oklch,var(--bg) 92%,transparent);backdrop-filter:saturate(1.4) blur(10px);-webkit-backdrop-filter:saturate(1.4) blur(10px);border-bottom:1px solid var(--line)}
+#gsearch{padding:var(--s2) max(var(--s4),env(safe-area-inset-left)) var(--s1)}
+#gsearch input{min-height:48px;font-size:1.05rem}
+nav#tabs{display:flex;gap:var(--s1);padding:0 max(var(--s3),env(safe-area-inset-left));overflow-x:auto;scrollbar-width:none}
 nav#tabs::-webkit-scrollbar{display:none}
 nav#tabs a{flex:1;position:relative;display:grid;place-items:center;min-height:var(--tap);padding:0 var(--s2);text-decoration:none;color:var(--muted);
   font-weight:600;font-size:.98rem;white-space:nowrap;transition:color .18s var(--ease)}
@@ -277,7 +279,7 @@ li.gs:hover{background:var(--surface-2)}
 li.gs>a:first-child{flex:1;display:flex;align-items:center;gap:var(--s3);min-height:var(--tap);padding:var(--s3) var(--s2);text-decoration:none;color:inherit;border-bottom:0;font-family:var(--font-read)}
 li.gs .ext{color:var(--accent);font-size:1.1rem}
 li.gs .alt{font-size:.85rem;font-weight:600;color:var(--accent);padding:var(--s2) var(--s3);text-decoration:none}
-li.grp{position:sticky;top:calc(var(--hdr,0px) + var(--s7) - 2px);z-index:2;padding:var(--s2) var(--s3);font-family:var(--font-head);font-weight:700;color:var(--accent);
+li.grp{position:sticky;top:var(--hdr,0px);z-index:2;padding:var(--s2) var(--s3);font-family:var(--font-head);font-weight:700;color:var(--accent);
   background:var(--surface-2);border-radius:var(--radius);margin-top:var(--s4);border-bottom:0}
 .az{display:flex;flex-wrap:wrap;gap:6px;margin:var(--s2) 0 var(--s1)}
 .az a{display:grid;place-items:center;min-width:36px;min-height:36px;border-radius:var(--radius);background:var(--surface-2);text-decoration:none;color:var(--accent);font-weight:700;font-size:.9rem}
@@ -339,3 +341,51 @@ footer a:hover{color:var(--accent)}
 .docart.mini{width:30px;height:40px;margin-left:auto;border-radius:4px;box-shadow:var(--shadow)}
 .docart.cover{width:84px;height:112px;border-radius:var(--radius);box-shadow:var(--shadow)}
 ul.list li a:has(.docart.mini){align-items:center}
+
+/* =====================================================================
+   Restructure: sticky global search, hubs, directory
+   ===================================================================== */
+@media (min-width:760px){
+  #gsearch{padding-left:max(var(--s5),calc((100% - 1000px)/2));padding-right:max(var(--s5),calc((100% - 1000px)/2))}
+}
+main h2:first-child,main .bar+h2{margin-top:var(--s2)}
+
+/* hub rows: Music and Library entries, tap to open */
+ul.hub{list-style:none;margin:var(--s4) 0 var(--s5);padding:0;display:flex;flex-direction:column;gap:var(--s3)}
+.hubrow{display:flex;align-items:center;gap:var(--s4);min-height:76px;padding:var(--s3) var(--s4);background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--radius-lg);text-decoration:none;color:var(--fg);box-shadow:var(--shadow);transition:border-color .15s var(--ease),transform .15s var(--ease)}
+.hubrow:hover{border-color:var(--accent)}
+.hubrow:active{transform:translateY(1px)}
+.hubart{flex:none;width:48px;display:grid;place-items:center}
+.hubtxt{flex:1;min-width:0}
+.hubtxt b{display:block;font-family:var(--font-head);font-weight:var(--head-weight);font-size:1.2rem;letter-spacing:var(--head-track);line-height:1.25}
+.hubtxt small{display:block;color:var(--muted);font-size:.9rem;margin-top:2px}
+.chev{color:var(--muted);font-size:1.6rem;line-height:1;padding-left:var(--s1)}
+.hubrow .badge{white-space:nowrap}
+.tile{display:grid;place-items:center;width:44px;height:44px;border-radius:var(--radius);background:var(--accent-soft);color:var(--accent)}
+.tile svg{width:24px;height:24px}
+.tile.lg{width:72px;height:72px;border-radius:var(--radius-lg)}.tile.lg svg{width:38px;height:38px}
+.hubart .docart.mini{width:36px;height:48px;margin:0}
+img.cover.mini{width:34px;height:auto;display:block;border-radius:3px}
+.hubart img.cover.mini{width:36px}
+.empty{text-align:center;padding:var(--s6) var(--s3);display:flex;flex-direction:column;align-items:center;gap:var(--s3)}
+.empty p{max-width:34em;margin:0}
+.empty .btn{margin-top:var(--s2)}
+
+/* browse switch inside PHB Hymns */
+.seg.wide{display:flex;margin:var(--s3) 0 var(--s2)}
+.seg.wide button{flex:1;min-height:var(--tap)}
+
+/* counts at the end of a list row */
+ul.list li a .cnt{margin-left:auto;align-self:center;color:var(--muted);font-size:.9rem;font-variant-numeric:tabular-nums;padding-left:var(--s3)}
+
+/* global search results */
+.rsec h3.sec{display:flex;align-items:baseline;gap:var(--s2);border-bottom:1px solid var(--line);padding-bottom:var(--s2)}
+.rsec h3.sec .muted{font-family:var(--font-ui);font-size:.85rem;font-weight:600}
+
+/* directory people */
+li.person{display:flex;align-items:center;gap:var(--s3);padding:var(--s3) var(--s2);border-bottom:1px solid var(--line)}
+li.person:last-child{border-bottom:0}
+.avatar{flex:none;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:.85rem;letter-spacing:.02em}
+li.person .first{font-family:var(--font-ui);font-size:1rem}
+li.person small b{color:var(--fg);font-weight:600}
